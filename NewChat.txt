@@ -1,0 +1,142 @@
+📌 خلاصه‌ی پروژه Control System Manager
+═══════════════════════════════════════════════════════════
+
+🎯 هدف: برنامه طراحی سیستم کنترل BMS با Python/Tkinter
+
+📁 مسیر پروژه:
+D:\01-Projects\Control System Design\control_system_manager
+
+🛠️ تکنولوژی‌ها:
+- Python 3.14
+- Tkinter (GUI)
+- SQLite (Database)
+- reportlab + python-docx (خروجی)
+- openai (AI)
+- arabic-reshaper + python-bidi (PDF فارسی)
+
+═══════════════════════════════════════════════════════════
+✅ کارهای انجام‌شده (فاز ۱-۴)
+═══════════════════════════════════════════════════════════
+
+۱. Learning Engine — یادگیری از ۸ پروژه، ۴۲۵ دستگاه
+۲. Local Proposal Generator — تولید پروپوزال با تصاویر
+۳. DeepSeek Client + Config Manager — API Key در config.json
+۴. Section Detector — تشخیص ۱۱/۱۱ نوع سکشن
+۵. Query Engine — ۱۰/۱۰ کوئری موفق
+۶. Steam Kv Calculator (IEC 60534-2-1)
+۷. VFS 2 Valve — از کاتالوگ Danfoss
+۸. Valve Dialog — کارت Steam + Choked Flow
+۹. PDF فارسی — RTL کامل
+۱۰. Cable Tag Sanitization — فقط ASCII
+۱۱. EXE نهایی — ~۶۵ مگابایت
+
+═══════════════════════════════════════════════════════════
+📂 فایل‌های کلیدی
+═══════════════════════════════════════════════════════════
+
+ai/
+├── learning_engine.py
+├── local_proposal_generator.py
+├── deepseek_client.py
+├── proposal_section_detector.py
+├── query_templates.py
+└── ai_assistant.py
+
+core/
+├── steam_kv_calculator.py    (جدید)
+├── valve_calculator.py
+├── valve_constants.py
+└── models.py
+
+gui/
+├── ai_settings_dialog.py     (جدید)
+└── valves/valve_dialog.py
+
+export/
+├── pdf_exporter.py
+└── pdf_proposal_exporter.py
+
+utils/
+├── config_manager.py         (جدید)
+└── pdf_helpers.py            (جدید)
+
+═══════════════════════════════════════════════════════════
+🗄️ مسیرهای داده
+═══════════════════════════════════════════════════════════
+
+D:\BMS Projects\IO_List_Generator\
+├── IO_List_Generator.db
+├── Backups\
+├── config\config.json        (API Key)
+├── logs\app.log
+└── Attachments\{ProjectName}\
+
+═══════════════════════════════════════════════════════════
+⚠️ کارهای باقی‌مانده (اختیاری)
+═══════════════════════════════════════════════════════════
+
+۱. یکسان‌سازی منطق select_vfs2 با select_vrg3
+   (نزدیک‌ترین kvs به جای بزرگ‌تر یا مساوی)
+
+۲. سری VFS 2 HP برای بخار پرفشار
+۳. رفع باگ کوچک Query («پرکاربردترین کامپوننت»)
+۴. افزودن تصاویر mechanical_room، exhaust_fan، building
+
+═══════════════════════════════════════════════════════════
+🧪 تست‌های موجود
+═══════════════════════════════════════════════════════════
+
+- test_full_system.py        (تست همه اجزا)
+- test_queries.py            (تست Query Engine)
+- test_kvs_debug.py          (تست Kv بخار)
+- analyze_project.py         (تست Learning Engine)
+- make_docs_pdf.py           (تولید PDF راهنما)
+
+═══════════════════════════════════════════════════════════
+🔑 نکات مهم
+═══════════════════════════════════════════════════════════
+
+- Config: D:\BMS Projects\IO_List_Generator\config\config.json
+- Database: D:\BMS Projects\IO_List_Generator\IO_List_Generator.db
+- Build: python -m PyInstaller --clean main.spec
+- Test: python main.py
+- EXE: dist\ControlSystemManager.exe
+
+- Font: tahoma.ttf, BNazanin.ttf, BLotus.ttf, BMitra.ttf
+- Images: ai/proposal_images/ (15 فایل)
+- Templates: ai/proposal_templates/ (13 فایل)
+
+═══════════════════════════════════════════════════════════
+📌 استانداردها
+═══════════════════════════════════════════════════════════
+
+- IEC 60534-2-1 (محاسبه Kv بخار)
+- Danfoss VFS 2 (شیر بخار)
+- Danfoss VRG 3 (شیر سه راهه)
+- Danfoss ABQM (شیر PICV)
+
+
+
+--------------------------
+1. main.spec
+2. requirements.txt
+3. utils/pdf_helpers.py
+4. utils/config_manager.py
+5. core/steam_kv_calculator.py
+6. core/valve_constants.py
+7. core/valve_calculator.py
+8. ai/ai_assistant.py
+9. ai/learning_engine.py
+10. ai/local_proposal_generator.py
+11. ai/query_templates.py
+12. gui/valves/valve_dialog.py
+13. export/pdf_exporter.py
+14. export/pdf_proposal_exporter.py
+-------------------------
+
+سلام، این فایل‌ها مربوط به پروژه Control System Manager است.
+
+لطفاً:
+1. فایل‌ها را بررسی کن
+2. معماری کلی را بفهم
+3. منتظر درخواست بعدی من باش

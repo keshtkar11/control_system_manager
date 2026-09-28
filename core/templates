@@ -1,0 +1,176 @@
+"""
+قالب‌های تجهیزات - ذخیره‌سازی قالب‌های کاربر
+
+این فایل فقط شامل ساختار خالی برای قالب‌ها است.
+همه قالب‌ها توسط کاربر از پروژه‌ها ایجاد می‌شوند.
+"""
+
+# ===== دیکشنری خالی برای قالب‌های پیش‌فرض =====
+# کاربر قالب‌های خود را از طریق TemplateManager ایجاد می‌کند
+DEFAULT_TEMPLATES = {}
+
+# ===== لیست‌های کمکی (خالی) =====
+TEMPLATE_NAMES = []
+TEMPLATE_CATEGORIES = []
+TEMPLATES_BY_CATEGORY = {}
+TEMPLATE_SUMMARIES = {}
+
+# ===== توابع کمکی (با مقدار پیش‌فرض) =====
+
+def get_template_summary(template_name: str) -> dict:
+    """
+    دریافت خلاصه I/O یک قالب
+    
+    Args:
+        template_name: نام قالب
+    
+    Returns:
+        دیکشنری خالی (چون قالب پیش‌فرضی وجود ندارد)
+    """
+    return {}
+
+def get_templates_by_category(category: str) -> list:
+    """
+    دریافت لیست قالب‌های یک دسته
+    
+    Args:
+        category: نام دسته
+    
+    Returns:
+        لیست خالی (چون قالب پیش‌فرضی وجود ندارد)
+    """
+    return []
+
+def get_all_categories() -> list:
+    """
+    دریافت لیست تمام دسته‌بندی‌ها
+    
+    Returns:
+        لیست خالی (چون قالب پیش‌فرضی وجود ندارد)
+    """
+    return []
+
+def get_template_names_with_io() -> dict:
+    """
+    دریافت نام قالب‌ها همراه با خلاصه I/O
+    
+    Returns:
+        دیکشنری خالی (چون قالب پیش‌فرضی وجود ندارد)
+    """
+    return {}
+
+# ===== کلاس برای مدیریت قالب‌های پیش‌فرض (در صورت نیاز آینده) =====
+
+class DefaultTemplateRegistry:
+    """
+    ثبت‌نام قالب‌های پیش‌فرض - در صورت نیاز آینده
+    
+    این کلاس برای امکان اضافه کردن قالب‌های پیش‌فرض در آینده طراحی شده است.
+    اما فعلاً هیچ قالبی ندارد.
+    """
+    
+    _templates = {}
+    _categories = set()
+    _by_category = {}
+    _summaries = {}
+    
+    @classmethod
+    def register_template(cls, name: str, template_data: dict):
+        """
+        ثبت یک قالب جدید (برای استفاده در آینده)
+        
+        Args:
+            name: نام قالب
+            template_data: داده‌های قالب
+        """
+        cls._templates[name] = template_data
+        category = template_data.get('category', 'Other')
+        cls._categories.add(category)
+        
+        if category not in cls._by_category:
+            cls._by_category[category] = []
+        cls._by_category[category].append(name)
+        
+        cls._summaries[name] = template_data.get('summary', {})
+    
+    @classmethod
+    def get_all_templates(cls) -> dict:
+        """دریافت همه قالب‌های ثبت شده"""
+        return cls._templates.copy()
+    
+    @classmethod
+    def get_template(cls, name: str) -> dict:
+        """دریافت یک قالب خاص"""
+        return cls._templates.get(name)
+    
+    @classmethod
+    def get_categories(cls) -> list:
+        """دریافت لیست دسته‌بندی‌ها"""
+        return sorted(cls._categories)
+    
+    @classmethod
+    def get_templates_by_category(cls, category: str) -> list:
+        """دریافت قالب‌های یک دسته"""
+        return cls._by_category.get(category, [])
+    
+    @classmethod
+    def get_summary(cls, name: str) -> dict:
+        """دریافت خلاصه I/O یک قالب"""
+        return cls._summaries.get(name, {})
+    
+    @classmethod
+    def clear(cls):
+        """پاک کردن همه قالب‌ها"""
+        cls._templates.clear()
+        cls._categories.clear()
+        cls._by_category.clear()
+        cls._summaries.clear()
+
+
+# ===== نمونه‌های پیش‌فرض (برای راهنمایی کاربر) =====
+
+# این بخش فقط برای راهنمایی است و در برنامه استفاده نمی‌شود
+# کاربر می‌تواند با الگوبرداری از این نمونه‌ها، قالب‌های خود را بسازد
+
+SAMPLE_TEMPLATE = {
+    "name": "My Boiler Template",
+    "category": "Mechanical",
+    "devices": [
+        {
+            "type": "Motor",
+            "quantity": 1,
+            "naming": "PU-{n}",
+            "description": "Boiler Pump",
+            "positions": [],
+            "io": {"DI": 4, "DO": 1, "AI": 0, "AO": 0},
+            "component": "PU"
+        },
+        {
+            "type": "Temperature Sensor",
+            "quantity": 2,
+            "naming": "TS-{n}",
+            "description": "{position} Water Temperature",
+            "positions": ["Outlet", "Inlet"],
+            "io": {"DI": 0, "DO": 0, "AI": 2, "AO": 0},
+            "component": "ITS"
+        }
+    ],
+    "summary": {"DI": 4, "DO": 1, "AI": 2, "AO": 0, "total": 7}
+}
+
+# ===== توضیحات برای توسعه‌دهندگان =====
+
+__doc__ = """
+قالب‌های تجهیزات - سیستم بدون قالب پیش‌فرض
+
+این فایل فقط یک ساختار خالی برای قالب‌ها فراهم می‌کند.
+همه قالب‌ها توسط کاربر از طریق TemplateManager ایجاد و ذخیره می‌شوند.
+
+نحوه استفاده:
+1. کاربر دستگاه‌ها را در پروژه انتخاب می‌کند
+2. با کلیک روی "ذخیره به عنوان قالب" یک قالب جدید ایجاد می‌شود
+3. قالب‌ها در دیتابیس ذخیره می‌شوند
+4. کاربر می‌تواند قالب‌های ذخیره شده را در پروژه‌های دیگر استفاده کند
+
+برای اضافه کردن قالب‌های پیش‌فرض در آینده، از DefaultTemplateRegistry استفاده کنید.
+"""

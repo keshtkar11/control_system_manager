@@ -1,0 +1,292 @@
+Folder PATH listing for volume Data
+tree /F /A > project_structure.txt
+D:.
+|   analyze_project.py
+|   app.log
+|   control_system_manager.txt
+|   Help.txt
+|   main.py
+|   main.spec
+|   project_structure.txt
+|   README.md
+|   requirements.txt
+|   
++---ai
+|   |   ai_assistant.py
+|   |   deepseek_client.py
+|   |   learning_engine.py
+|   |   local_proposal_generator.py
+|   |   pattern_extractor.py
+|   |   pattern_matcher.py
+|   |   project_matcher.py
+|   |   project_query_engine.py
+|   |   proposal_importer.py
+|   |   proposal_instructions.txt
+|   |   proposal_section_detector.py
+|   |   proposal_template.txt
+|   |   query_templates.py
+|   |   __init__.py
+|   |   
+|   +---proposal_images
+|   |       ahu.png
+|   |       boiler.png
+|   |       booster_pump.png
+|   |       building.png
+|   |       chiller.png
+|   |       dhw.png
+|   |       exhaust_fan.png
+|   |       expansion_tank.png
+|   |       fan.png
+|   |       hardware.png
+|   |       mechanical_room.png
+|   |       Panel.png
+|   |       primary_loop.png
+|   |       pump.png
+|   |       secondary_loop.png
+|   |       
+|   +---proposal_templates
+|   |       ahu.txt
+|   |       boiler.txt
+|   |       booster_pump.txt
+|   |       chiller.txt
+|   |       cooling_tower.txt
+|   |       dhw.txt
+|   |       expansion_tank.txt
+|   |       fancoil.txt
+|   |       hardware.txt
+|   |       heat_exchanger.txt
+|   |       panel.txt
+|   |       primary_loop.txt
+|   |       proposal_templates.rar
+|   |       secondary_loop.txt
+|   |       
+|   \---__pycache__
+|           ai_assistant.cpython-314.pyc
+|           deepseek_client.cpython-314.pyc
+|           learning_engine.cpython-314.pyc
+|           local_proposal_generator.cpython-314.pyc
+|           pattern_extractor.cpython-314.pyc
+|           project_matcher.cpython-314.pyc
+|           project_query_engine.cpython-314.pyc
+|           proposal_importer.cpython-314.pyc
+|           proposal_section_detector.cpython-314.pyc
+|           query_templates.cpython-314.pyc
+|           __init__.cpython-314.pyc
+|           
++---build
+|   \---main
+|       |   Analysis-00.toc
+|       |   base_library.zip
+|       |   ControlSystemManager.pkg
+|       |   EXE-00.toc
+|       |   PKG-00.toc
+|       |   PYZ-00.pyz
+|       |   PYZ-00.toc
+|       |   warn-main.txt
+|       |   xref-main.html
+|       |   
+|       \---localpycs
+|               pyimod01_archive.pyc
+|               pyimod02_importers.pyc
+|               pyimod03_ctypes.pyc
+|               pyimod04_pywin32.pyc
+|               struct.pyc
+|               
++---core
+|   |   attachments.py
+|   |   component_manager.py
+|   |   constants.py
+|   |   database.py
+|   |   history.py
+|   |   models.py
+|   |   steam_kv_calculator.py
+|   |   templates
+|   |   template_manager.py
+|   |   validation_errors.py
+|   |   validators.py
+|   |   valve_calculator.py
+|   |   valve_constants.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           attachments.cpython-314.pyc
+|           component_manager.cpython-314.pyc
+|           constants.cpython-314.pyc
+|           database.cpython-314.pyc
+|           history.cpython-314.pyc
+|           models.cpython-314.pyc
+|           steam_kv_calculator.cpython-314.pyc
+|           template_manager.cpython-314.pyc
+|           validation_errors.cpython-314.pyc
+|           validators.cpython-314.pyc
+|           valve_calculator.cpython-314.pyc
+|           valve_constants.cpython-314.pyc
+|           __init__.cpython-314.pyc
+|           
++---data
+|       IO_List_Generator.db
+|       
++---dist
+|       ControlSystemManager.exe
+|       
++---export
+|   |   excel_exporter.py
+|   |   excel_styles.py
+|   |   excel_utils.py
+|   |   pdf_exporter.py
+|   |   pdf_proposal_exporter.py
+|   |   report_generator.py
+|   |   valves_excel_exporter.py
+|   |   word_proposal_exporter.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           word_proposal_exporter.cpython-314.pyc
+|           __init__.cpython-314.pyc
+|           
++---gui
+|   |   ai_settings_dialog.py
+|   |   attachments_panel.py
+|   |   component_dialogs.py
+|   |   dialogs.py
+|   |   import_proposal_dialog.py
+|   |   main_window.py
+|   |   sidebar.py
+|   |   styles
+|   |   template_dialogs.py
+|   |   __init__.py
+|   |   
+|   +---components
+|   |   |   button.py
+|   |   |   card.py
+|   |   |   dialog.py
+|   |   |   input.py
+|   |   |   separator.py
+|   |   |   toast.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           button.cpython-314.pyc
+|   |           card.cpython-314.pyc
+|   |           dialog.cpython-314.pyc
+|   |           input.cpython-314.pyc
+|   |           separator.cpython-314.pyc
+|   |           toast.cpython-314.pyc
+|   |           __init__.cpython-314.pyc
+|   |           
+|   +---dialogs_new
+|   |   |   device_dialog.py
+|   |   |   project_dialog.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           device_dialog.cpython-314.pyc
+|   |           project_dialog.cpython-314.pyc
+|   |           __init__.cpython-314.pyc
+|   |           
+|   +---help
+|   |   |   help_content.py
+|   |   |   help_dialog.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           help_content.cpython-314.pyc
+|   |           help_dialog.cpython-314.pyc
+|   |           __init__.cpython-314.pyc
+|   |           
+|   +---layout
+|   |   |   sidebar.py
+|   |   |   statusbar.py
+|   |   |   table.py
+|   |   |   toolbar.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           sidebar.cpython-314.pyc
+|   |           statusbar.cpython-314.pyc
+|   |           table.cpython-314.pyc
+|   |           toolbar.cpython-314.pyc
+|   |           __init__.cpython-314.pyc
+|   |           
+|   +---theme
+|   |   |   colors.py
+|   |   |   icons.py
+|   |   |   spacing.py
+|   |   |   theme_manager.py
+|   |   |   ttk_styles.py
+|   |   |   typography.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           colors.cpython-314.pyc
+|   |           icons.cpython-314.pyc
+|   |           spacing.cpython-314.pyc
+|   |           theme_manager.cpython-314.pyc
+|   |           ttk_styles.cpython-314.pyc
+|   |           typography.cpython-314.pyc
+|   |           __init__.cpython-314.pyc
+|   |           
+|   +---valves
+|   |   |   valves_panel.py
+|   |   |   valve_dialog.py
+|   |   |   valve_table.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           valves_panel.cpython-314.pyc
+|   |           valve_dialog.cpython-314.pyc
+|   |           valve_table.cpython-314.pyc
+|   |           __init__.cpython-314.pyc
+|   |           
+|   \---__pycache__
+|           ai_settings_dialog.cpython-314.pyc
+|           attachments_panel.cpython-314.pyc
+|           dialogs.cpython-314.pyc
+|           import_proposal_dialog.cpython-314.pyc
+|           main_window.cpython-314.pyc
+|           __init__.cpython-314.pyc
+|           
++---logs
+|       app.log
+|       
++---resources
+|   +---fonts
+|   |   |   arial.ttf
+|   |   |   BLotus.ttf
+|   |   |   BMitra.ttf
+|   |   |   BNazanin.ttf
+|   |   |   tahoma.ttf
+|   |   |   
+|   |   \---essential
+|   |           arial.ttf
+|   |           BLotus.ttf
+|   |           BMitra.ttf
+|   |           BNazanin.ttf
+|   |           tahoma.ttf
+|   |           
+|   +---icons
+|   |       icon.ico
+|   |       Vahhaj.png
+|   |       
+|   \---translations
++---tests
+|       run_all_tests.py
+|       test_database.py
+|       test_exporters.py
+|       test_integration.py
+|       test_models.py
+|       test_validators.py
+|       __init__.py
+|       
+\---utils
+    |   config_manager.py
+    |   helpers.py
+    |   logger.py
+    |   paths.py
+    |   __init__.py
+    |   
+    \---__pycache__
+            config_manager.cpython-314.pyc
+            paths.cpython-314.pyc
+            __init__.cpython-314.pyc
+            

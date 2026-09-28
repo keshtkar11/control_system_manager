@@ -1,0 +1,31 @@
+# کتابخانه‌های اصلی  tree /F /A > project_structure.txt
+tkinter
+sqlite3
+json
+os
+sys
+math
+datetime
+logging
+shutil
+typing
+
+# کتابخانه‌های تخصصی
+openpyxl>=3.0.0
+reportlab>=3.6.0
+Pillow>=9.0.0
+requests>=2.28.0
+
+# کتابخانه‌های اختیاری (AI)
+scikit-learn>=1.0.0
+numpy>=1.21.0
+
+# کتابخانه‌های توسعه
+pytest>=7.0.0  # برای تست
+black>=22.0.0  # فرمت‌کننده کد
+
+openai>=1.0.0
+
+python-docx>=1.0.0
+reportlab>=4.0.0
+python -m pip install arabic-reshaper python-bidi
