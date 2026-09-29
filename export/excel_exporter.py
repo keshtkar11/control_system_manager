@@ -20,6 +20,7 @@ from openpyxl.formatting.rule import ColorScaleRule
 from export.excel_styles import ExcelStyles
 from export.excel_utils import ExcelUtils
 from core.constants import get_timestamp_for_filename
+from collections import defaultdict
 
 from core import Motor, Project, COMPONENT_LABELS, COMPONENT_KEYS
 from core.constants import IO_CALCULATION, CABLE_SIZE, EXCLUDED_FROM_COMPONENTS, COLORS
@@ -470,6 +471,7 @@ class ExcelExporter:
         description_groups = {}
 
         for section in project.sections:
+            section_label = getattr(section, 'display_name', None) or section.name
             for device in section.devices:
                 desc = device.Description or "Unknown"
                 
@@ -478,7 +480,7 @@ class ExcelExporter:
                 
                 if group_key not in description_groups:
                     description_groups[group_key] = {
-                        'section': section.name,
+                        'section': section_label,
                         'description': desc,
                         'count': 0,
                         'di': 0,
@@ -765,6 +767,13 @@ class ExcelExporter:
             if not section.devices:
                 continue
 
+            # ✅ اضافه شد: نام نمایشی سکشن — Name (Description)
+            section_display = (
+                getattr(section, 'display_name', None)
+                or getattr(section, 'name', None)
+                or 'Unknown Section'
+            )
+
             section_usage = {}
             for device in section.devices:
                 for field in COMPONENT_KEYS:
@@ -793,7 +802,8 @@ class ExcelExporter:
                 end_row=row,
                 end_column=total_cols
             )
-            cell = ws.cell(row=row, column=1, value=f"📁 {section.name}")
+            # ✅ استفاده از section_display (تعریف‌شده در بالا)
+            cell = ws.cell(row=row, column=1, value=f"📁 {section_display}")
             cell.font = Font(bold=True, color="FFFFFF", size=10, name="Calibri")
             cell.fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
             cell.alignment = Alignment(horizontal="left", vertical="center")
@@ -843,8 +853,8 @@ class ExcelExporter:
                 if field in section_total_active:
                     section_total_active[field] += data["qty"]
                 
-                # مقادیر پایه
-                values = [section.name, name, data["qty"], data["di"], data["do"], data["ai"], data["ao"]]
+                # ✅ استفاده از section_display در ستون Section
+                values = [section_display, name, data["qty"], data["di"], data["do"], data["ai"], data["ao"]]
                 
                 # مقادیر Active
                 for key in active_keys:
@@ -874,7 +884,6 @@ class ExcelExporter:
                 row += 1
 
             # ===== سطر مجموع این بخش (Subtotal) =====
-            # به‌روزرسانی جمع کل پروژه
             grand_total_qty += section_total_qty
             grand_total_di += section_total_di
             grand_total_do += section_total_do
@@ -884,8 +893,8 @@ class ExcelExporter:
             for key in active_keys:
                 grand_total_active[key] += section_total_active.get(key, 0)
 
-            # مقادیر سطر مجموع بخش
-            subtotal_values = [section.name, "SUBTOTAL", section_total_qty, section_total_di, 
+            # ✅ استفاده از section_display در subtotal
+            subtotal_values = [section_display, "SUBTOTAL", section_total_qty, section_total_di, 
                             section_total_do, section_total_ai, section_total_ao]
             
             for key in active_keys:
@@ -1088,7 +1097,7 @@ class ExcelExporter:
             grand_total_active[key] = 0
 
         global_cable_counter = 0
-
+        component_counters = defaultdict(int)
         row = current_row
 
         # ===== مرزها =====
@@ -1102,11 +1111,20 @@ class ExcelExporter:
             """
             تولید نام پمپ‌ها
             
+            Rules:
+                count == 0 → []
+                count == 1 → [device_name]        (بدون اندیس)
+                count >  1 → [device_name+a, ...] (با اندیس)
+            
             Returns:
-                لیست نام‌ها: ["P5a", "P5b", "P5c"] یا ["P5", "P6", "P7"]
+                لیست نام‌ها: ["P5"] یا ["P5a", "P5b", "P5c"]
             """
             if count == 0:
                 return []
+            
+            # ✅ اگر فقط یک پمپ است، بدون اندیس
+            if count == 1:
+                return [device_name]
             
             names = []
             
@@ -1119,6 +1137,7 @@ class ExcelExporter:
                 # روش عددی
                 import re
                 match = re.match(r'^(.*?)(\d+)$', device_name)
+                
                 if match:
                     prefix = match.group(1)
                     start_num = int(match.group(2))
@@ -1137,6 +1156,13 @@ class ExcelExporter:
             if not section.devices:
                 continue
 
+            # ✅ اضافه شد: نام نمایشی سکشن — Name (Description)
+            section_display = (
+                getattr(section, 'display_name', None)
+                or getattr(section, 'name', None)
+                or 'Unknown Section'
+            )
+            component_counters.clear()
             cable_data = []
             for device in section.devices:
                 device_name = device.Name or "Unnamed"
@@ -1209,10 +1235,10 @@ class ExcelExporter:
 
                             # Status
                             global_cable_counter += 1
-                            status_tag = f"{display_name}-Status-{global_cable_counter:04d}"
+                            status_tag = f"{display_name}-Status"
 
                             cable_data.append({
-                                'section': section.name,
+                                'section': section_display,   # ✅ اصلاح‌شده
                                 'remark': info_value,
                                 'name': display_name,
                                 'cable_tag': status_tag,
@@ -1234,10 +1260,10 @@ class ExcelExporter:
 
                             # CMD
                             global_cable_counter += 1
-                            cmd_tag = f"{display_name}-CMD-{global_cable_counter:04d}"
+                            cmd_tag = f"{display_name}-CMD"
 
                             cable_data.append({
-                                'section': section.name,
+                                'section': section_display,   # ✅ اصلاح‌شده
                                 'remark': info_value,
                                 'name': display_name,
                                 'cable_tag': cmd_tag,
@@ -1268,10 +1294,10 @@ class ExcelExporter:
                                 display_name = device_name
 
                             global_cable_counter += 1
-                            vsd_tag = f"{display_name}-{field}-{global_cable_counter:04d}"
+                            vsd_tag = f"{display_name}-{field}"
 
                             cable_data.append({
-                                'section': section.name,
+                                'section': section_display,   # ✅ اصلاح‌شده
                                 'remark': info_value,
                                 'name': display_name,
                                 'cable_tag': vsd_tag,
@@ -1305,10 +1331,10 @@ class ExcelExporter:
                                 display_name = f"{device_name}-FS"
 
                             global_cable_counter += 1
-                            comp_tag = f"{display_name}-{global_cable_counter:04d}"
+                            comp_tag = f"{display_name}"
 
                             cable_data.append({
-                                'section': section.name,
+                                'section': section_display,   # ✅ اصلاح‌شده
                                 'remark': info_value,
                                 'name': display_name,
                                 'cable_tag': comp_tag,
@@ -1327,7 +1353,6 @@ class ExcelExporter:
                                     for c in all_active_components
                                 ]
                             })
-
                     # ============================================================
                     # سایر کامپوننت‌ها
                     # ============================================================
@@ -1336,11 +1361,17 @@ class ExcelExporter:
                             tag_suffix = tag_suffixes[field][i]
                             display_name = device_name
 
+                            # ✅ شمارنده سراسری (برای ترتیب)
                             global_cable_counter += 1
-                            comp_tag = f"{device_name}{tag_suffix}-{field}-{global_cable_counter:04d}"
+                            
+                            # ✅ شمارنده مستقل برای این field
+                            component_counters[field] += 1
+                            
+                            # ✅ Cable Tag با شمارنده مستقل
+                            comp_tag = f"{field}-{component_counters[field]}"
 
                             cable_data.append({
-                                'section': section.name,
+                                'section': section_display,   # ✅ اصلاح‌شده
                                 'remark': info_value,
                                 'name': display_name,
                                 'cable_tag': comp_tag,
@@ -1365,7 +1396,7 @@ class ExcelExporter:
 
             # ===== عنوان بخش =====
             ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=total_cols)
-            cell = ws.cell(row=row, column=1, value=f"📁 {section.name}")
+            cell = ws.cell(row=row, column=1, value=f"📁 {section_display}")   # ✅ اصلاح‌شده
             cell.font = Font(bold=True, color="FFFFFF", size=10, name="Calibri")
             cell.fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
             cell.alignment = Alignment(horizontal="left", vertical="center")
@@ -1463,8 +1494,8 @@ class ExcelExporter:
             for key in active_keys:
                 grand_total_active[key] += section_total_active.get(key, 0)
 
-            subtotal_values = ["", section.name, "SUBTOTAL", "", "", "", "", "", "", "", "",
-                            section_total_di, section_total_do, section_total_ai, section_total_ao]
+            subtotal_values = ["", section_display, "SUBTOTAL", "", "", "", "", "", "", "", "",
+                            section_total_di, section_total_do, section_total_ai, section_total_ao]   # ✅ اصلاح‌شده
 
             for key in active_keys:
                 subtotal_values.append(section_total_active.get(key, 0))
@@ -1660,9 +1691,10 @@ class ExcelExporter:
             total_fbx += fbx
             total_mcx_08m2 += mcx_08m2
             total_mcx_06d += mcx_06d
-            
+
+            section_label = getattr(section, 'display_name', None) or section.name
             data.append([
-                section.name, section_di, section_do, section_ai, section_ao,
+                section_label, section_di, section_do, section_ai, section_ao,
                 section_io, cbx, fbx, mcx_08m2, mcx_06d,
             ])
         

@@ -993,7 +993,7 @@ class PDFExporter:
                             # Status
                             global_cable_counter += 1
                             safe_name = self._sanitize_cable_tag(display_name)
-                            status_tag = f"{safe_name}-Status-{global_cable_counter:04d}"
+                            status_tag = f"{safe_name}-Status-{global_cable_counter }"
                             
                             cable_list.append({
                                 'tag': status_tag,
@@ -1015,7 +1015,7 @@ class PDFExporter:
                             
                             # CMD
                             global_cable_counter += 1
-                            cmd_tag = f"{safe_name}-CMD-{global_cable_counter:04d}"
+                            cmd_tag = f"{safe_name}-CMD-{global_cable_counter }"
                             
                             cable_list.append({
                                 'tag': cmd_tag,
@@ -1042,7 +1042,7 @@ class PDFExporter:
                             )
                             
                             global_cable_counter += 1
-                            vsd_tag = f"{safe_name}-{field}-{global_cable_counter:04d}"
+                            vsd_tag = f"{safe_name}-{field}-{global_cable_counter }"
                             
                             cable_list.append({
                                 'tag': vsd_tag,
@@ -1073,7 +1073,7 @@ class PDFExporter:
                                 display_name = f"{device_name}-FS"
                             
                             global_cable_counter += 1
-                            comp_tag = f"{display_name}-{global_cable_counter:04d}"
+                            comp_tag = f"{display_name}-{global_cable_counter }"
                             
                             cable_list.append({
                                 'tag': comp_tag,
@@ -1102,7 +1102,7 @@ class PDFExporter:
                             global_cable_counter += 1
                             safe_device = self._sanitize_cable_tag(device_name)
                             safe_suffix = self._sanitize_cable_tag(tag_suffix)
-                            comp_tag = f"{safe_device}{safe_suffix}-{field}-{global_cable_counter:04d}"
+                            comp_tag = f"{safe_device}{safe_suffix}-{field}-{global_cable_counter }"
                             
                             cable_list.append({
                                 'tag': comp_tag,

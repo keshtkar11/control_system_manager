@@ -56,6 +56,83 @@ logger = logging.getLogger(__name__)
 # ================================================================
 
 
+def _resolve_picv_actuator(signal: str, model: str = '',
+                            default_actuator: str = '') -> str:
+    """
+    تعیین Actuator واقعی PICV بر اساس Signal و Model
+    
+    منطق (طبق کاتالوگ Danfoss):
+    
+    ┌──────────────────────┬─────────────────────────┬──────────────────┐
+    │ Model Range          │ Signal                  │ Actuator         │
+    ├──────────────────────┼─────────────────────────┼──────────────────┤
+    │ ABQM15 → ABQM32HF    │ Modulating , 24Vac      │ AME110NLX        │
+    │ ABQM15 → ABQM32HF    │ 220V On/Off             │ TWA-Q 230V NC    │
+    │ ABQM40 → ABQM100HF   │ (هر سیگنالی)           │ AME435QM         │
+    │ ABQM125 → ABQM200    │ (هر سیگنالی)           │ AME55QM          │
+    └──────────────────────┴─────────────────────────┴──────────────────┘
+    
+    ⚠️ برای مدل‌های ABQM40 به بالا، Signal کاربر نادیده گرفته می‌شود
+       چون این مدل‌ها فقط یک نوع Actuator دارند.
+    """
+    signal_lower = (signal or '').strip().lower()
+    model_upper = (model or '').strip().upper()
+    
+    # ============================================================
+    # Set های دقیق مدل‌ها (بدون substring problem)
+    # ============================================================
+    MODELS_AME55QM = {
+        'ABQM125', 'ABQM125HF',
+        'ABQM150', 'ABQM150HF',
+        'ABQM200',
+    }
+    
+    MODELS_AME435QM = {
+        'ABQM40', 'ABQM50',
+        'ABQM65', 'ABQM65HF',
+        'ABQM80', 'ABQM80HF',
+        'ABQM100', 'ABQM100HF',
+    }
+    
+    MODELS_DUAL = {
+        'ABQM15', 'ABQM15 HF',
+        'ABQM20HF', 'ABQM25HF', 'ABQM32HF',
+    }
+    
+    # ============================================================
+    # ۱. مدل‌های ABQM125 → ABQM200: فقط AME55QM
+    # ============================================================
+    if model_upper in MODELS_AME55QM:
+        return "AME55QM"
+    
+    # ============================================================
+    # ۲. مدل‌های ABQM40 → ABQM100HF: فقط AME435QM
+    # ============================================================
+    if model_upper in MODELS_AME435QM:
+        return "AME435QM"
+    
+    # ============================================================
+    # ۳. مدل‌های ABQM15 → ABQM32HF: Actuator بر اساس Signal
+    # ============================================================
+    if model_upper in MODELS_DUAL:
+        # Signal = Modulating → AME110NLX
+        if 'modulating' in signal_lower:
+            return "AME110NLX"
+        # Signal = 220V On/Off → TWA-Q 230V NC
+        if (
+            '220v' in signal_lower
+            or 'on/off' in signal_lower
+            or 'on-off' in signal_lower
+        ):
+            return "TWA-Q 230V NC"
+        # Signal ناشناخته → پیش‌فرض Modulating
+        return "AME110NLX"
+    
+    # ============================================================
+    # ۴. Model ناشناخته → مقدار پیش‌فرض
+    # ============================================================
+    return default_actuator or ''
+
 
 def convert_flow_to_lph(flow: float, unit: str,
                         pressure_drop_psi: float = None) -> float:
@@ -542,24 +619,48 @@ def enrich_valve(valve) -> None:
 
 
 def _enrich_picv(valve) -> None:
-    """پر کردن فیلدهای PICV"""
+    """پر کردن فیلدهای PICV — با منطق Signal → Actuator"""
     if valve.MaxFlowLPH <= 0:
         valve.WarningGeneral = "⚠️ دبی برای محاسبه PICV نامعتبر است"
         return
     
+    # ============================================================
+    # ✅ ۱. ذخیره Signal کاربر (قبل از محاسبه)
+    # ============================================================
+    user_signal = (getattr(valve, 'PICVSignal', '') or '').strip()
+    
+    # ============================================================
+    # ✅ ۲. محاسبه PICV
+    # ============================================================
     picv_result = select_picv(valve.MaxFlowLPH)
     
     valve.PICVModel = picv_result['model'] or ''
     valve.PICVMaxFlow = picv_result['max_flow'] or 0
     valve.PICVPercent = picv_result['percent'] or 0
     
+    # ============================================================
+    # ✅ ۳. Signal و Actuator
+    # ============================================================
     if valve.ValveType == 'PICV+3Way':
+        # برای PICV+3Way: Signal کاربر حفظ می‌شود
+        # ولی Actuator خالی می‌ماند (چون 3Way دارد)
+        valve.PICVSignal = user_signal
         valve.PICVActuator = ''
-        valve.PICVSignal = ''
     else:
-        valve.PICVActuator = picv_result['actuator'] or ''
-        valve.PICVSignal = picv_result['signal'] or ''
+        # برای PICV خالص:
+        # ۱. Signal: اگر کاربر داده → حفظ، وگرنه از جدول
+        valve.PICVSignal = user_signal or (picv_result['signal'] or '')
+        
+        # ۲. Actuator: از Signal استخراج می‌شود (نه از جدول!)
+        valve.PICVActuator = _resolve_picv_actuator(
+            signal=valve.PICVSignal,
+            model=valve.PICVModel,
+            default_actuator=picv_result['actuator'] or ''
+        )
     
+    # ============================================================
+    # ✅ ۴. هشدارها
+    # ============================================================
     if picv_result.get('warning'):
         valve.WarningGeneral = picv_result['warning']
 
@@ -819,6 +920,7 @@ __all__ = [
     
     # تابع جامع
     'enrich_valve',
+    '_resolve_picv_actuator',
     
     # کمکی
     'get_active_fields_for_type',

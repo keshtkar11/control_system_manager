@@ -258,6 +258,21 @@ class ProjectSection:
         self.order_index = 0
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
+
+
+    @property
+    def display_name(self) -> str:
+        """
+        نام نمایشی سکشن — Name (Description)
+        
+        برای گزارش‌های Excel/PDF استفاده می‌شود.
+        """
+        name = (self.name or '').strip()
+        desc = (self.description or '').strip()
+        
+        if name and desc:
+            return f"{name} ({desc})"
+        return name or desc or 'Unknown Section'
     
     @staticmethod
     def _validate_name(name: str) -> str:

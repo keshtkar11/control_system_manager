@@ -23,6 +23,7 @@ from openpyxl.styles import (
 )
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.page import PageMargins
+from core.valve_calculator import _resolve_picv_actuator
 
 from core.constants import (
     get_timestamp_for_filename,
@@ -514,9 +515,17 @@ class ValvesExcelExporter:
             return
         
         # ===== نام شیت امن (max 31 char) =====
+        section_full = section_name   # "Section 1 (AHU-Full Fresh)"
+        
+        # استخراج name برای Sheet name
+        if ' (' in section_name:
+            sheet_base = section_name.split(' (', 1)[0]
+        else:
+            sheet_base = section_name
+        
         safe_name = "".join(
             c if c.isalnum() or c in " _-" else "_"
-            for c in section_name
+            for c in sheet_base
         ).strip()[:25] or "Section"
         
         # جلوگیری از نام تکراری
@@ -876,19 +885,30 @@ class ValvesExcelExporter:
         ws.row_dimensions[total_row].height = 25
         
         # ============================================================
-        # جدول ۲: جمع‌آوری موتورها
         # ============================================================
+        # جدول ۲: جمع‌آوری موتورها
+        # ✅ اصلاح‌شده:
+        #   ۱. Actuator بر اساس Signal تعیین می‌شود
+        #   ۲. Case نرمال‌سازی می‌شود
+        # ============================================================
+        
+        
+        actuator_display = {}
         actuator_groups = defaultdict(int)
         
         for valve in all_valves:
             valve_type = valve.ValveType or ''
-            
             actuator = ''
             signal = ''
             
             if valve_type == 'PICV':
-                actuator = valve.PICVActuator or ''
                 signal = valve.PICVSignal or ''
+                # ✅ Actuator را از Signal استخراج کن
+                actuator = _resolve_picv_actuator(
+                    signal=signal,
+                    model=valve.PICVModel or '',
+                    default_actuator=valve.PICVActuator or ''
+                )
             elif valve_type == '3 Way':
                 actuator = valve.__dict__.get('3WayActuator', '') or ''
                 signal = valve.__dict__.get('3WaySignal', '') or ''
@@ -902,8 +922,17 @@ class ValvesExcelExporter:
             if not actuator:
                 continue
             
-            key = (actuator, signal)
-            actuator_groups[key] += int(valve.Quantity or 0)
+            # ✅ نرمال‌سازی case برای گروه‌بندی
+            norm_key = (
+                actuator.strip().lower(),
+                signal.strip().lower()
+            )
+            
+            # ✅ ذخیره نسخه اصلی برای نمایش
+            if norm_key not in actuator_display:
+                actuator_display[norm_key] = (actuator, signal)
+            
+            actuator_groups[norm_key] += int(valve.Quantity or 0)
         
         # ============================================================
         # مرتب‌سازی موتورها
@@ -919,7 +948,10 @@ class ValvesExcelExporter:
         row = header_row + 1
         actuator_total = 0
         
-        for i, ((actuator, signal), qty) in enumerate(sorted_actuators, 1):
+        for i, (norm_key, qty) in enumerate(sorted_actuators, 1):
+            # ✅ استفاده از نسخه اصلی برای نمایش
+            actuator, signal = actuator_display[norm_key]
+            
             is_alt = (i % 2 == 0)
             
             values = [i, actuator, signal or '—', qty]
@@ -1066,15 +1098,29 @@ class ValvesExcelExporter:
         ws.row_dimensions[total_row].height = 25
         
         # ============================================================
-        # جدول ۲: موتورها — جمع کل پروژه
         # ============================================================
+        # جدول ۲: موتورها — جمع کل پروژه
+        # ✅ اصلاح‌شده:
+        #   ۱. Actuator بر اساس Signal تعیین می‌شود
+        #   ۲. Case نرمال‌سازی می‌شود
+        # ============================================================
+        
+        
+        actuator_display = {}
         actuator_groups = defaultdict(int)
+        
         for valve in all_valves:
             vtype = valve.ValveType or ''
             actuator = signal = ''
+            
             if vtype == 'PICV':
-                actuator = valve.PICVActuator or ''
                 signal = valve.PICVSignal or ''
+                # ✅ Actuator را از Signal استخراج کن
+                actuator = _resolve_picv_actuator(
+                    signal=signal,
+                    model=valve.PICVModel or '',
+                    default_actuator=valve.PICVActuator or ''
+                )
             elif vtype == '3 Way':
                 actuator = getattr(valve, '3WayActuator', '') or ''
                 signal = getattr(valve, '3WaySignal', '') or ''
@@ -1084,17 +1130,36 @@ class ValvesExcelExporter:
             elif vtype == 'PICV+3Way':
                 actuator = getattr(valve, '3WayActuator', '') or ''
                 signal = getattr(valve, '3WaySignal', '') or ''
+            
             if not actuator:
                 continue
-            actuator_groups[(actuator, signal)] += int(valve.Quantity or 0)
+            
+            # ✅ نرمال‌سازی case
+            norm_key = (
+                actuator.strip().lower(),
+                signal.strip().lower()
+            )
+            
+            if norm_key not in actuator_display:
+                actuator_display[norm_key] = (actuator, signal)
+            
+            actuator_groups[norm_key] += int(valve.Quantity or 0)
         
-        sorted_actuators = sorted(actuator_groups.items(), key=lambda x: (-x[1], x[0][0]))
-        
+        # ✅ مرتب‌سازی
+        sorted_actuators = sorted(
+            actuator_groups.items(),
+            key=lambda x: (-x[1], x[0][0])
+        )
         row = header_row + 1
         actuator_total = 0
-        for i, ((actuator, signal), qty) in enumerate(sorted_actuators, 1):
+        for i, (norm_key, qty) in enumerate(sorted_actuators, 1):
+            # ✅ استفاده از نسخه اصلی برای نمایش
+            actuator, signal = actuator_display[norm_key]
+            
             is_alt = (i % 2 == 0)
-            for col_idx, value in enumerate([i, actuator, signal or '—', qty], 6):
+            for col_idx, value in enumerate(
+                [i, actuator, signal or '—', qty], 6
+            ):
                 cell = ws.cell(row=row, column=col_idx, value=value)
                 cell.font = self.body_font
                 cell.alignment = self.center_alignment
@@ -1102,7 +1167,7 @@ class ValvesExcelExporter:
                 cell.fill = self.alt_fill if is_alt else self.body_fill
             actuator_total += qty
             ws.row_dimensions[row].height = 20
-            row += 1
+            row += 1        
         
         total_row_2 = row
         ws.cell(row=total_row_2, column=6, value="TOTAL")
@@ -1619,12 +1684,6 @@ class ValvesExcelExporter:
     # ================================================================
     
     def _collect_valves_by_section(self) -> Dict[str, List]:
-        """
-        جمع‌آوری شیرها به تفکیک سکشن از رویژن فعلی
-        
-        Returns:
-            dict: {section_name: [valves]}
-        """
         project = self.app.get_current_project()
         if not project:
             return {}
@@ -1635,10 +1694,16 @@ class ValvesExcelExporter:
         
         result = {}
         for section in current_revision.sections:
-            section_name = getattr(section, 'name', None) or f"Section_{id(section)}"
+            # ✅ استفاده از display_name (Name (Description))
+            section_label = (
+                getattr(section, 'display_name', None)
+                or getattr(section, 'name', None)
+                or f"Section_{id(section)}"
+            )
+            
             valves = list(getattr(section, 'valves', []) or [])
             if valves:
-                result[section_name] = valves
+                result[section_label] = valves
         
         return result
 

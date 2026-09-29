@@ -69,19 +69,24 @@ SIGNAL_TYPES = [
 # (max_flow_LPH, model, actuator, signal)
 
 ABQM_TABLE = [
-    (700,   "ABQM15",     "AME110nlx (or TWA-Q 230V NC)", "Modulating , 24Vac , 0-10V"),
-    (1200,  "ABQM15 HF",  "AME110nlx (or TWA-Q 230V NC)", "Modulating , 24Vac , 0-10V"),
-    (1900,  "ABQM20HF",   "AME110nlx (or TWA-Q 230V NC)", "Modulating , 24Vac , 0-10V"),
-    (3800,  "ABQM25HF",   "AME110nlx (or TWA-Q 230V NC)", "Modulating , 24Vac , 0-10V"),
-    (5000,  "ABQM32HF",   "AME110nlx (or TWA-Q 230V NC)", "Modulating , 24Vac , 0-10V"),
+    (700,   "ABQM15",     "AME110NLX (or TWA-Q 230V NC)", "Modulating , 24Vac , 0-10V"),
+    (1200,  "ABQM15 HF",  "AME110NLX (or TWA-Q 230V NC)", "Modulating , 24Vac , 0-10V"),
+    (1900,  "ABQM20HF",   "AME110NLX (or TWA-Q 230V NC)", "Modulating , 24Vac , 0-10V"),
+    (3800,  "ABQM25HF",   "AME110NLX (or TWA-Q 230V NC)", "Modulating , 24Vac , 0-10V"),
+    (5000,  "ABQM32HF",   "AME110NLX (or TWA-Q 230V NC)", "Modulating , 24Vac , 0-10V"),
     (7500,  "ABQM40",     "AME435QM",                     "Modulating , 24Vac , 0-10V"),
     (12500, "ABQM50",     "AME435QM",                     "Modulating , 24Vac , 0-10V"),
     (20000, "ABQM65",     "AME435QM",                     "Modulating , 24Vac , 0-10V"),
     (25000, "ABQM65HF",   "AME435QM",                     "Modulating , 24Vac , 0-10V"),
     (28000, "ABQM80",     "AME435QM",                     "Modulating , 24Vac , 0-10V"),
     (38000, "ABQM100",    "AME435QM",                     "Modulating , 24Vac , 0-10V"),
-    (40000, "ABQM80HF",   "AME55QM",                      "Modulating , 24Vac , 0-10V"),
-    (59000, "ABQM100HF",  "AME55QM",                      "Modulating , 24Vac , 0-10V"),
+    (40000, "ABQM80HF",   "AME435QM",                      "Modulating , 24Vac , 0-10V"),
+    (59000, "ABQM100HF",  "AME435QM",                      "Modulating , 24Vac , 0-10V"),
+    (115000, "ABQM125",  "AME55QM",                      "Modulating , 24Vac , 0-10V"),
+    (140000, "ABQM125HF",  "AME55QM",                      "Modulating , 24Vac , 0-10V"),
+    (155000, "ABQM150",  "AME55QM",                      "Modulating , 24Vac , 0-10V"),
+    (200000, "ABQM150HF",  "AME55QM",                      "Modulating , 24Vac , 0-10V"),
+    (320000, "ABQM200",  "AME55QM",                      "Modulating , 24Vac , 0-10V"),
 ]
 
 # ============================================================
