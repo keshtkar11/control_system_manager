@@ -256,20 +256,35 @@ class DeviceTable(tk.Frame):
         
         # تنظیم ستون‌ها
         column_configs = {
-            'no':          ('No',          50,  'center'),
-            'name':        ('Name',        180, 'w'),
-            'description': ('Description', 200, 'w'),
-            'di':          ('DI',          50,  'center'),
-            'do':          ('DO',          50,  'center'),
-            'ai':          ('AI',          50,  'center'),
-            'ao':          ('AO',          50,  'center'),
-            'total':       ('Total',       60,  'center'),
-            'info':        ('Device',      150, 'w'),
+            'no':          ('No',          35,  'center'),
+            'name':        ('Name',        100, 'center'),
+            'description': ('Description', 250, 'center'),
+            'di':          ('DI',          35,  'center'),
+            'do':          ('DO',          35,  'center'),
+            'ai':          ('AI',          35,  'center'),
+            'ao':          ('AO',          35,  'center'),
+            'total':       ('Total',       45,  'center'),
+            'info':        ('Device',      250, 'center'),
         }
         
         for col, (title, width, align) in column_configs.items():
             self.tree.heading(col, text=title)
-            self.tree.column(col, width=width, anchor=align, minwidth=40)
+            
+            # ✅ minwidth کوچک برای ستون‌های باریک
+            if width < 50:
+                min_w = 20
+                stretch = False    # ثابت
+            else:
+                min_w = 60
+                stretch = True     # کشیده
+            
+            self.tree.column(
+                col,
+                width=width,
+                anchor=align,
+                minwidth=min_w,
+                stretch=stretch,
+            )
         
         # Scrollbars
         vsb = ttk.Scrollbar(
