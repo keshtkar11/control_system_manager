@@ -2,10 +2,11 @@
 """
 خروجی PDF حرفه‌ای — با پشتیبانی کامل فارسی
 
-نسخه 2.0:
-- فونت فارسی
-- RTL کامل
-- arabic-reshaper + python-bidi
+نسخه 2.1 (هماهنگ با Excel):
+- Sections Analysis با ستون Components
+- LOM All Sections با گروه‌بندی (field, model_order)
+- Cable Tag جدید (per-field counters)
+- Controller Requirements با display_name
 """
 
 import os
@@ -52,18 +53,11 @@ class PDFExporter:
 
     @staticmethod
     def _sanitize_cable_tag(text) -> str:
-        """
-        پاک‌سازی Cable Tag — فقط ASCII
-        
-        - حفظ: حروف انگلیسی، اعداد، خط تیره، زیرخط، نقطه
-        - حذف: کاراکترهای فارسی/عربی و خاص
-        """
+        """پاک‌سازی Cable Tag — فقط ASCII"""
         if not text:
             return ''
         
         text = str(text)
-        
-        # ===== حفظ فقط کاراکترهای مجاز =====
         result = ''.join(
             c for c in text
             if ord(c) < 128 and (c.isalnum() or c in '-_.')
@@ -76,7 +70,6 @@ class PDFExporter:
         try:
             import sys
             
-            # ===== مسیر base =====
             if getattr(sys, 'frozen', False):
                 base_path = sys._MEIPASS
             else:
@@ -84,7 +77,6 @@ class PDFExporter:
             
             resources_fonts = os.path.join(base_path, 'resources', 'fonts')
             
-            # ===== مسیرهای ممکن =====
             font_candidates = [
                 os.path.join(resources_fonts, "essential", "tahoma.ttf"),
                 os.path.join(resources_fonts, "tahoma.ttf"),
@@ -98,7 +90,7 @@ class PDFExporter:
                 if os.path.exists(font_path):
                     pdfmetrics.registerFont(TTFont('PersianFont', font_path))
                     self.persian_font = "PersianFont"
-                    self.persian_font_bold = "PersianFont"  # همان فونت
+                    self.persian_font_bold = "PersianFont"
                     print(f"✅ Font loaded: {os.path.basename(font_path)}")
                     break
             else:
@@ -137,6 +129,16 @@ class PDFExporter:
         """دریافت اندازه کابل"""
         return CABLE_SIZE.get(field, '2x1mm²')
     
+    @staticmethod
+    def _fa_safe(text):
+        """فقط اگر متن غیر-ASCII داشت، reshape کن"""
+        if not text:
+            return ''
+        text = str(text)
+        if all(ord(c) < 128 for c in text):
+            return text
+        return fa(text)
+    
     # ============================================================
     # STYLES
     # ============================================================
@@ -146,7 +148,6 @@ class PDFExporter:
         styles = getSampleStyleSheet()
         FONT = self.persian_font
         
-        # ===== MainTitle =====
         styles.add(ParagraphStyle(
             name='MainTitle',
             parent=styles['Heading1'],
@@ -158,7 +159,6 @@ class PDFExporter:
             textColor=colors.HexColor('#1F4E79')
         ))
         
-        # ===== SubTitle =====
         styles.add(ParagraphStyle(
             name='SubTitle',
             parent=styles['Normal'],
@@ -170,7 +170,6 @@ class PDFExporter:
             textColor=colors.HexColor('#7F8C8D')
         ))
         
-        # ===== SectionTitle =====
         styles.add(ParagraphStyle(
             name='SectionTitle',
             parent=styles['Heading2'],
@@ -183,7 +182,6 @@ class PDFExporter:
             textColor=colors.HexColor('#1F4E79')
         ))
         
-        # ===== SubSectionTitle =====
         styles.add(ParagraphStyle(
             name='SubSectionTitle',
             parent=styles['Heading3'],
@@ -196,7 +194,6 @@ class PDFExporter:
             textColor=colors.HexColor('#2C3E50')
         ))
         
-        # ===== SectionNameTitle =====
         styles.add(ParagraphStyle(
             name='SectionNameTitle',
             parent=styles['Heading4'],
@@ -209,7 +206,6 @@ class PDFExporter:
             textColor=colors.HexColor('#1F4E79')
         ))
         
-        # ===== NormalText =====
         styles.add(ParagraphStyle(
             name='NormalText',
             parent=styles['Normal'],
@@ -220,7 +216,6 @@ class PDFExporter:
             leading=15,
         ))
         
-        # ===== TableText =====
         styles.add(ParagraphStyle(
             name='TableText',
             parent=styles['Normal'],
@@ -231,7 +226,6 @@ class PDFExporter:
             leading=14,
         ))
         
-        # ===== TableHeader =====
         styles.add(ParagraphStyle(
             name='TableHeader',
             parent=styles['Normal'],
@@ -243,7 +237,6 @@ class PDFExporter:
             leading=14,
         ))
         
-        # ===== FooterStyle =====
         styles.add(ParagraphStyle(
             name='FooterStyle',
             parent=styles['Normal'],
@@ -328,7 +321,6 @@ class PDFExporter:
         ))
         elements.append(Spacer(1, 15))
         
-        # ===== Revision =====
         revision_style = ParagraphStyle(
             'RevisionStyle',
             parent=styles['Normal'],
@@ -509,10 +501,11 @@ class PDFExporter:
         return elements
     
     # ============================================================
-    # SECTIONS ANALYSIS
+    # SECTIONS ANALYSIS — ✅ هماهنگ با Excel
     # ============================================================
     
     def _create_sections_analysis(self, project, styles, width):
+        """3. IO List for each Device — با ستون Components"""
         elements = []
         
         elements.append(Paragraph(
@@ -523,21 +516,37 @@ class PDFExporter:
         
         total_io = project.get_total_io()
         
+        # ✅ هدرها با Components
         table_data = [[
-            "Section Name", "Device Description", "Devices",
+            "Section Name", "Device Description", "Devices", "Components",
             "DI", "DO", "AI", "AO", "Total I/O", "Percentage"
         ]]
         
+        # ============================================================
+        # ✅ گروه‌بندی بر اساس (Section + Description) مشابه Excel
+        # ============================================================
+        description_groups = {}
+        
         for section in project.sections:
-            description_groups = {}
+            section_label = getattr(section, 'display_name', None) or section.name
             
             for device in section.devices:
                 desc = device.Description or "Unknown"
-                if desc not in description_groups:
-                    description_groups[desc] = {
-                        'count': 0, 'di': 0, 'do': 0, 'ai': 0, 'ao': 0
+                group_key = (section.name, desc)
+                
+                if group_key not in description_groups:
+                    description_groups[group_key] = {
+                        'section': section_label,
+                        'description': desc,
+                        'device_count': 0,
+                        'component_count': 0,
+                        'di': 0,
+                        'do': 0,
+                        'ai': 0,
+                        'ao': 0
                     }
                 
+                # device_count
                 device_count = 1
                 for field in COMPONENT_KEYS:
                     if field in ['PU', 'VSD']:
@@ -546,42 +555,60 @@ class PDFExporter:
                             device_count = qty
                             break
                 
-                description_groups[desc]['count'] += device_count
-                description_groups[desc]['di'] += device.DI
-                description_groups[desc]['do'] += device.DO
-                description_groups[desc]['ai'] += device.AI
-                description_groups[desc]['ao'] += device.AO
-            
-            for desc, data in description_groups.items():
-                group_io = data['di'] + data['do'] + data['ai'] + data['ao']
-                percentage = (group_io / total_io * 100) if total_io > 0 else 0
+                # component_count
+                component_count = 0
+                for field in COMPONENT_KEYS:
+                    if field in EXCLUDED_FROM_COMPONENTS:
+                        continue
+                    qty = self._safe_int(getattr(device, field, 0))
+                    component_count += qty
                 
-                # ✅ reshape متن فارسی
-                table_data.append([
-                    fa(section.name),
-                    fa(desc),
-                    str(data['count']),
-                    str(data['di']),
-                    str(data['do']),
-                    str(data['ai']),
-                    str(data['ao']),
-                    str(group_io),
-                    f"{percentage:.1f}%"
-                ])
+                description_groups[group_key]['device_count'] += device_count
+                description_groups[group_key]['component_count'] += component_count
+                description_groups[group_key]['di'] += device.DI
+                description_groups[group_key]['do'] += device.DO
+                description_groups[group_key]['ai'] += device.AI
+                description_groups[group_key]['ao'] += device.AO
         
+        # ===== نمایش =====
+        for group_key, data in description_groups.items():
+            group_io = data['di'] + data['do'] + data['ai'] + data['ao']
+            percentage = (group_io / total_io * 100) if total_io > 0 else 0
+            
+            table_data.append([
+                fa(data['section']),
+                fa(data['description']),
+                str(data['device_count']),
+                str(data['component_count']),   # ✅ جدید
+                str(data['di']),
+                str(data['do']),
+                str(data['ai']),
+                str(data['ao']),
+                str(group_io),
+                f"{percentage:.1f}%"
+            ])
+        
+        # ===== ستون‌ها =====
         col_widths = [
-            width * 0.20, width * 0.35, width * 0.08,
-            width * 0.05, width * 0.05, width * 0.05,
-            width * 0.05, width * 0.10, width * 0.07
+            width * 0.18,   # Section Name
+            width * 0.30,   # Device Description
+            width * 0.06,   # Devices
+            width * 0.08,   # Components  ← جدید
+            width * 0.05,   # DI
+            width * 0.05,   # DO
+            width * 0.05,   # AI
+            width * 0.05,   # AO
+            width * 0.10,   # Total I/O
+            width * 0.08,   # Percentage
         ]
         
-        table = Table(table_data, colWidths=col_widths)
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F4E79')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, -1), self.persian_font),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
-            ('FONTSIZE', (0, 1), (-1, -1), 11),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
             ('GRID', (0, 0), (-1, -1), 0.3, colors.grey),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -593,10 +620,11 @@ class PDFExporter:
         return elements
     
     # ============================================================
-    # COMPONENTS ANALYSIS
+    # COMPONENTS ANALYSIS — ✅ هماهنگ با Excel
     # ============================================================
     
     def _create_components_analysis(self, project, devices, styles, width):
+        """4. List of Materials — با گروه‌بندی (field, model_order)"""
         elements = []
         
         elements.append(Paragraph("4. List of Materials Report", styles['MainTitle']))
@@ -609,39 +637,69 @@ class PDFExporter:
         ))
         elements.append(Spacer(1, 4))
         
-        usage = {}
+        # ============================================================
+        # ✅ جدید: گروه‌بندی (field, model_order)
+        # ============================================================
+        grouped_usage = {}   # {(field, model_order): {...}}
+        
         for device in devices:
             for field in COMPONENT_KEYS:
                 if field in EXCLUDED_FROM_COMPONENTS:
                     continue
                 qty = self._safe_int(getattr(device, field, 0))
                 if qty > 0:
-                    if field not in usage:
-                        usage[field] = {"qty": 0, "di": 0, "do": 0, "ai": 0, "ao": 0}
-                    usage[field]["qty"] += qty
+                    model_order = device.get_model_order(field)
+                    key = (field, model_order)
+                    
+                    if key not in grouped_usage:
+                        grouped_usage[key] = {
+                            "qty": 0, "di": 0, "do": 0, "ai": 0, "ao": 0
+                        }
+                    
+                    grouped_usage[key]["qty"] += qty
                     
                     if field in IO_CALCULATION:
                         io = IO_CALCULATION[field]
-                        usage[field]["di"] += qty * io.get("DI", 0)
-                        usage[field]["do"] += qty * io.get("DO", 0)
-                        usage[field]["ai"] += qty * io.get("AI", 0)
-                        usage[field]["ao"] += qty * io.get("AO", 0)
+                        grouped_usage[key]["di"] += qty * io.get("DI", 0)
+                        grouped_usage[key]["do"] += qty * io.get("DO", 0)
+                        grouped_usage[key]["ai"] += qty * io.get("AI", 0)
+                        grouped_usage[key]["ao"] += qty * io.get("AO", 0)
         
-        if usage:
+        if grouped_usage:
+            # ============================================================
+            # ✅ مرتب‌سازی: component (الفبا)، سپس model_order
+            # ============================================================
             sorted_usage = sorted(
-                usage.items(), key=lambda x: x[1]["qty"], reverse=True
+                grouped_usage.items(),
+                key=lambda x: (
+                    x[0][0],                       # component
+                    x[0][1] == '',                 # خالی آخر
+                    x[0][1] if x[0][1] else '',
+                )
             )
-            active_keys = sorted(usage.keys())
             
-            table_data = [["Component", "Qty", "DI", "DO", "AI", "AO"]]
+            # ✅ ستون‌های Active: فقط component های یکتا
+            active_keys = sorted(set(field for field, _ in grouped_usage.keys()))
+            
+            # ✅ هدر با Model-Order
+            table_data = [[
+                "Component", "Qty", "DI", "DO", "AI", "AO", "Model-Order"
+            ]]
             for key in active_keys:
                 table_data[0].append(key)
             
-            for field, data in sorted_usage[:30]:
+            # ✅ داده‌ها
+            for (field, model_order), data in sorted_usage:
                 name = self._get_component_name(field)
-                row = [fa(name), str(data["qty"]),
-                       str(data["di"]), str(data["do"]),
-                       str(data["ai"]), str(data["ao"])]
+                row = [
+                    fa(name),
+                    str(data["qty"]),
+                    str(data["di"]),
+                    str(data["do"]),
+                    str(data["ai"]),
+                    str(data["ao"]),
+                    self._fa_safe(model_order) if model_order else '',   # ✅ Model-Order
+                ]
                 
                 for key in active_keys:
                     if key == field:
@@ -651,36 +709,69 @@ class PDFExporter:
                 
                 table_data.append(row)
             
-            col_widths = [width * 0.35, width * 0.08,
-                         width * 0.08, width * 0.08,
-                         width * 0.08, width * 0.08]
+            # ✅ سطر TOTAL
+            total_qty = sum(d["qty"] for d in grouped_usage.values())
+            total_di = sum(d["di"] for d in grouped_usage.values())
+            total_do = sum(d["do"] for d in grouped_usage.values())
+            total_ai = sum(d["ai"] for d in grouped_usage.values())
+            total_ao = sum(d["ao"] for d in grouped_usage.values())
+            
+            total_row = ["TOTAL", str(total_qty), str(total_di),
+                        str(total_do), str(total_ai), str(total_ao), ""]
+            
+            for key in active_keys:
+                col_qty = sum(
+                    d["qty"]
+                    for (f, _), d in grouped_usage.items()
+                    if f == key
+                )
+                total_row.append(str(col_qty))
+            
+            table_data.append(total_row)
+            
+            # ===== ستون‌ها =====
+            col_widths = [
+                width * 0.30,   # Component
+                width * 0.08,   # Qty
+                width * 0.06,   # DI
+                width * 0.06,   # DO
+                width * 0.06,   # AI
+                width * 0.06,   # AO
+                width * 0.14,   # Model-Order  ← جدید
+            ]
             for _ in active_keys:
                 col_widths.append(width * 0.03)
             
-            total_width = sum(col_widths)
-            if total_width > 1.0:
-                scale_factor = 1.0 / total_width
-                col_widths = [w * scale_factor for w in col_widths]
-            col_widths = [w * width for w in col_widths]
+            # ===== تنظیم عرض =====
+            total_w = sum(col_widths)
+            if total_w > width:
+                scale = width / total_w
+                col_widths = [w * scale for w in col_widths]
             
-            table = Table(table_data, colWidths=col_widths)
+            table = Table(table_data, colWidths=col_widths, repeatRows=1)
             table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F4E79')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('FONTNAME', (0, 0), (-1, -1), self.persian_font),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('FONTSIZE', (0, 1), (-1, -2), 9),
                 ('GRID', (0, 0), (-1, -1), 0.3, colors.grey),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -2),
                  [colors.white, colors.HexColor('#F8F9FA')]),
+                # TOTAL
+                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E6E6FA')),
+                ('FONTSIZE', (0, -1), (-1, -1), 10),
+                ('FONTNAME', (0, -1), (-1, -1), self.persian_font),
             ]))
             elements.append(table)
         
         elements.append(Spacer(1, 10))
         
-        # ===== 4.2 By Sections =====
+        # ============================================================
+        # 4.2 By Sections
+        # ============================================================
         if len(project.sections) > 1:
             elements.append(Paragraph(
                 "4.2. LOM For each Section",
@@ -715,9 +806,10 @@ class PDFExporter:
                 if not section_usage:
                     continue
                 
-                # ✅ reshape نام سکشن
+                # ✅ نام نمایشی سکشن
+                section_label = getattr(section, 'display_name', None) or section.name
                 elements.append(Paragraph(
-                    f"<b>{fa(section.name)}</b>",
+                    f"<b>{fa(section_label)}</b>",
                     styles['SectionNameTitle']
                 ))
                 
@@ -755,7 +847,7 @@ class PDFExporter:
                     
                     table_data.append(row)
                 
-                # ===== Subtotal =====
+                # Subtotal
                 subtotal_row = [
                     "SUBTOTAL",
                     str(sec_total["qty"]),
@@ -793,9 +885,8 @@ class PDFExporter:
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('ROWBACKGROUNDS', (0, 1), (-1, -2),
                      [colors.HexColor('#F0F8FF'), colors.HexColor('#E8F4FD')]),
-                    # ===== Subtotal =====
+                    # Subtotal
                     ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#D6EAF8')),
-                    ('FONTNAME', (0, -1), (-1, -1), self.persian_font),
                     ('FONTSIZE', (0, -1), (-1, -1), 9),
                     ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#1F4E79')),
                 ]))
@@ -803,13 +894,13 @@ class PDFExporter:
                 elements.append(Spacer(1, 6))
         
         return elements
-    
+
     # ============================================================
-    # DETAIL IO LIST
+    # DETAIL IO LIST — ✅ Cable Tag جدید (هماهنگ با Excel)
     # ============================================================
     
     def _create_cable_list_by_section(self, project, styles, width):
-        """Detail IO List به تفکیک بخش‌ها"""
+        """Detail IO List به تفکیک بخش‌ها — با Cable Tag جدید"""
         elements = []
         
         elements.append(Paragraph(
@@ -885,7 +976,6 @@ class PDFExporter:
                 else:
                     msg_style = warn_msg_style
                 
-                # ✅ reshape متن فارسی
                 title_text = fa(str(err.title))
                 message_text = fa(str(err.message).replace('\n', ' | '))
                 
@@ -904,13 +994,21 @@ class PDFExporter:
             'FA', 'FE', 'SLE', 'CMD', 'PU', 'VSD', 'SPR', 'MOD', 'FC', 'LIG'
         ]
         
-        EQUIPMENT_KEYS = ['PU', 'VSD']
-        global_cable_counter = 0
-        
         def build_pump_names(device_name: str, count: int, use_index: bool) -> list:
-            """تولید نام پمپ‌ها"""
+            """
+            تولید نام پمپ‌ها
+            
+            Rules:
+                count == 0 → []
+                count == 1 → [device_name]
+                count >  1 → [device_name+a, ...]
+            """
             if count == 0:
                 return []
+            
+            # ✅ اگر فقط یک پمپ است، بدون اندیس
+            if count == 1:
+                return [device_name]
             
             names = []
             if use_index:
@@ -936,6 +1034,18 @@ class PDFExporter:
             if not section.devices:
                 continue
             
+            # ✅ نام نمایشی سکشن
+            section_display = (
+                getattr(section, 'display_name', None)
+                or getattr(section, 'name', None)
+                or 'Unknown Section'
+            )
+            
+            # ============================================================
+            # ✅ شمارنده مستقل برای هر کامپوننت (per-section)
+            # ============================================================
+            component_counters = {}   # {field: counter}
+            
             cable_list = []
             for device in section.devices:
                 device_name = device.Name or "Unnamed"
@@ -958,17 +1068,6 @@ class PDFExporter:
                             'label': self._get_component_name(comp_field)
                         })
                 
-                tag_suffixes = {}
-                for comp in all_active_components:
-                    field = comp['key']
-                    comp_qty = comp['qty']
-                    
-                    if comp_qty > 1:
-                        suffixes = [chr(ord('a') + i) for i in range(comp_qty)]
-                        tag_suffixes[field] = suffixes
-                    else:
-                        tag_suffixes[field] = ['']
-                
                 for comp in all_active_components:
                     field = comp['key']
                     comp_qty = comp['qty']
@@ -984,16 +1083,17 @@ class PDFExporter:
                         "Power Panel" if field in ['PU', 'VSD'] else "Field"
                     )
                     
+                    # ============================================================
+                    # PU: دو کابل (Status و CMD) — بدون شمارنده
+                    # ============================================================
                     if field == 'PU':
                         for i in range(comp_qty):
                             display_name = (
                                 pump_names[i] if i < len(pump_names) else device_name
                             )
                             
-                            # Status
-                            global_cable_counter += 1
-                            safe_name = self._sanitize_cable_tag(display_name)
-                            status_tag = f"{safe_name}-Status-{global_cable_counter }"
+                            # ✅ Status (بدون شمارنده)
+                            status_tag = f"{display_name}-Status"
                             
                             cable_list.append({
                                 'tag': status_tag,
@@ -1013,9 +1113,8 @@ class PDFExporter:
                                 ]
                             })
                             
-                            # CMD
-                            global_cable_counter += 1
-                            cmd_tag = f"{safe_name}-CMD-{global_cable_counter }"
+                            # ✅ CMD (بدون شمارنده)
+                            cmd_tag = f"{display_name}-CMD"
                             
                             cable_list.append({
                                 'tag': cmd_tag,
@@ -1035,14 +1134,18 @@ class PDFExporter:
                                 ]
                             })
                     
+                    # ============================================================
+                    # VSD: متصل به PU — بدون شمارنده
+                    # ============================================================
                     elif field == 'VSD':
                         for i in range(comp_qty):
-                            display_name = (
-                                pump_names[i] if i < len(pump_names) else device_name
-                            )
+                            if i < len(pump_names):
+                                display_name = pump_names[i]
+                            else:
+                                display_name = device_name
                             
-                            global_cable_counter += 1
-                            vsd_tag = f"{safe_name}-{field}-{global_cable_counter }"
+                            # ✅ بدون شمارنده
+                            vsd_tag = f"{display_name}-{field}"
                             
                             cable_list.append({
                                 'tag': vsd_tag,
@@ -1063,17 +1166,19 @@ class PDFExporter:
                                 ]
                             })
                     
+                    # ============================================================
+                    # FS: متصل به PU — بدون شمارنده
+                    # ============================================================
                     elif field == 'FS':
                         for i in range(comp_qty):
                             if i < len(pump_names):
                                 pump_name = pump_names[i]
-                                pump_name_safe = self._sanitize_cable_tag(pump_name)
-                                display_name = f"{pump_name_safe}-FS"
+                                display_name = f"{pump_name}-FS"
                             else:
                                 display_name = f"{device_name}-FS"
                             
-                            global_cable_counter += 1
-                            comp_tag = f"{display_name}-{global_cable_counter }"
+                            # ✅ بدون شمارنده
+                            comp_tag = f"{display_name}"
                             
                             cable_list.append({
                                 'tag': comp_tag,
@@ -1094,15 +1199,22 @@ class PDFExporter:
                                 ]
                             })
                     
+                    # ============================================================
+                    # ✅ سایر کامپوننت‌ها — شمارنده مستقل per-field
+                    # ============================================================
                     else:
+                        # ✅ شمارنده per-field
+                        if field not in component_counters:
+                            component_counters[field] = 0
+                        
                         for i in range(comp_qty):
-                            tag_suffix = tag_suffixes[field][i]
                             display_name = device_name
                             
-                            global_cable_counter += 1
-                            safe_device = self._sanitize_cable_tag(device_name)
-                            safe_suffix = self._sanitize_cable_tag(tag_suffix)
-                            comp_tag = f"{safe_device}{safe_suffix}-{field}-{global_cable_counter }"
+                            # ✅ افزایش شمارنده
+                            component_counters[field] += 1
+                            
+                            # ✅ Cable Tag جدید: فقط field + شمارنده
+                            comp_tag = f"{field}-{component_counters[field]}"
                             
                             cable_list.append({
                                 'tag': comp_tag,
@@ -1129,9 +1241,9 @@ class PDFExporter:
             has_cables = True
             elements.append(PageBreak())
             
-            # ✅ reshape نام سکشن
+            # ✅ نام نمایشی سکشن
             elements.append(Paragraph(
-                f"<b>{fa(section.name)}</b>",
+                f"<b>{fa(section_display)}</b>",
                 styles['SectionNameTitle']
             ))
             
@@ -1171,28 +1283,17 @@ class PDFExporter:
                     if comp['key'] in section_total_active:
                         section_total_active[comp['key']] += comp['qty']
                 
-                # ✅ reshape نام‌ها و توضیحات
-                def _fa_safe(text):
-                    """فقط اگر متن غیر-ASCII داشت، reshape کن"""
-                    if not text:
-                        return ''
-                    text = str(text)
-                    # اگر همه ASCII است → برگردان همان‌طور
-                    if all(ord(c) < 128 for c in text):
-                        return text
-                    return fa(text)
-
                 row = [
                     str(idx),
-                    _fa_safe(cable['device_name']),      # ← اگر فارسی است، reshape می‌شود
-                    _fa_safe(cable['info_value']),
+                    self._fa_safe(cable['device_name']),
+                    self._fa_safe(cable['info_value']),
                     cable['tag'],                         # ← Cable Tag خالص ASCII
-                    _fa_safe(cable['description']),
-                    _fa_safe(cable['location']),
+                    self._fa_safe(cable['description']),
+                    self._fa_safe(cable['location']),
                     cable['cable_type'],
                     cable['cable_size'],
-                    _fa_safe(cable['from']),
-                    _fa_safe(cable['to']),
+                    self._fa_safe(cable['from']),
+                    self._fa_safe(cable['to']),
                     str(cable['di']),
                     str(cable['do']),
                     str(cable['ai']),
@@ -1252,7 +1353,6 @@ class PDFExporter:
                 ('GRID', (0, 0), (-1, -1), 0.3, colors.grey),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                # Subtotal
                 ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#D6EAF8')),
                 ('FONTSIZE', (0, -1), (-1, -1), 9),
                 ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#1F4E79')),
@@ -1277,10 +1377,11 @@ class PDFExporter:
         return elements
     
     # ============================================================
-    # CONTROLLER REQUIREMENTS
+    # CONTROLLER REQUIREMENTS — ✅ هماهنگ با Excel
     # ============================================================
     
     def _create_controller_requirements_by_section(self, project, styles, width):
+        """6. Controller Requirements — با display_name"""
         elements = []
         
         elements.append(Paragraph(
@@ -1375,8 +1476,11 @@ class PDFExporter:
             total_cbx += cbx; total_fbx += fbx
             total_mcx_08m2 += mcx_08m2; total_mcx_06d += mcx_06d
             
+            # ✅ نام نمایشی سکشن
+            section_label = getattr(section, 'display_name', None) or section.name
+            
             table_data.append([
-                fa(section.name),
+                fa(section_label),
                 str(s_di), str(s_do), str(s_ai), str(s_ao), str(s_io),
                 str(cbx), str(fbx), str(mcx_08m2), str(mcx_06d),
             ])
@@ -1429,6 +1533,7 @@ class PDFExporter:
     # ============================================================
     
     def _create_appendices(self, devices, styles, width):
+        """7. Appendices"""
         elements = []
         
         elements.append(Paragraph("7. APPENDICES", styles['SectionTitle']))

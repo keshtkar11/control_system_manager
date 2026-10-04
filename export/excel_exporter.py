@@ -447,18 +447,19 @@ class ExcelExporter:
         self._set_page_setup(ws)
 
         # تنظیم عرض ستون‌ها
-        ws.column_dimensions['A'].width = 25
-        ws.column_dimensions['B'].width = 35
-        ws.column_dimensions['C'].width = 8
-        ws.column_dimensions['D'].width = 5
-        ws.column_dimensions['E'].width = 5
-        ws.column_dimensions['F'].width = 5
-        ws.column_dimensions['G'].width = 5
-        ws.column_dimensions['H'].width = 12
-        ws.column_dimensions['I'].width = 10
+        ws.column_dimensions['A'].width = 25   # Section Name
+        ws.column_dimensions['B'].width = 40   # Device Description
+        ws.column_dimensions['C'].width = 8    # Devices
+        ws.column_dimensions['D'].width = 10   # Components  ← جدید
+        ws.column_dimensions['E'].width = 5    # DI
+        ws.column_dimensions['F'].width = 5    # DO
+        ws.column_dimensions['G'].width = 5    # AI
+        ws.column_dimensions['H'].width = 5    # AO
+        ws.column_dimensions['I'].width = 12   # Total I/O
+        ws.column_dimensions['J'].width = 10   # Percentage
 
         # ===== عنوان =====
-        ws.merge_cells('A1:I1')
+        ws.merge_cells('A1:j1')
         ws['A1'].value = "3. IO List for each Device of Project "
         ws['A1'].font = self.section_font
         ws['A1'].fill = self.section_fill
@@ -482,14 +483,17 @@ class ExcelExporter:
                     description_groups[group_key] = {
                         'section': section_label,
                         'description': desc,
-                        'count': 0,
+                        'device_count': 0,      # ✅ تعداد Device های واقعی
+                        'component_count': 0,   # ✅ تعداد کل قطعات
                         'di': 0,
                         'do': 0,
                         'ai': 0,
                         'ao': 0
                     }
 
-                # محاسبه تعداد واقعی (PU و VSD)
+                # ============================================================
+                # ✅ محاسبه device_count (تعداد Device واقعی)
+                # ============================================================
                 device_count = 1
                 for field in COMPONENT_KEYS:
                     if field in ['PU', 'VSD']:
@@ -498,7 +502,19 @@ class ExcelExporter:
                             device_count = qty
                             break
 
-                description_groups[group_key]['count'] += device_count
+                # ============================================================
+                # ✅ محاسبه component_count (مجموع کل قطعات این Device)
+                # ============================================================
+                # همه کامپوننت‌ها (به جز EXCLUDED)
+                component_count = 0
+                for field in COMPONENT_KEYS:
+                    if field in EXCLUDED_FROM_COMPONENTS:
+                        continue
+                    qty = self._safe_int(getattr(device, field, 0))
+                    component_count += qty
+
+                description_groups[group_key]['device_count'] += device_count
+                description_groups[group_key]['component_count'] += component_count
                 description_groups[group_key]['di'] += device.DI
                 description_groups[group_key]['do'] += device.DO
                 description_groups[group_key]['ai'] += device.AI
@@ -507,7 +523,7 @@ class ExcelExporter:
         total_io = project.get_total_io()
 
         # ===== جدول =====
-        headers = ["Section Name", "Device Description", "Devices", "DI", "DO", "AI", "AO", "Total I/O", "Percentage"]
+        headers = ["Section Name", "Device Description", "Devices", "Components", "DI", "DO", "AI", "AO", "Total I/O", "Percentage"]
 
         row = 3
         for col, header in enumerate(headers, 1):
@@ -526,15 +542,16 @@ class ExcelExporter:
             percentage = (group_io / total_io * 100) if total_io > 0 else 0
 
             values = [
-                data['section'],           # ✅ نام بخش
-                data['description'],       # ✅ توضیحات دستگاه
-                data['count'],
-                data['di'],
-                data['do'],
-                data['ai'],
-                data['ao'],
-                group_io,
-                f"{percentage:.1f}%"
+                data['section'],           # A: نام بخش
+                data['description'],       # B: توضیحات دستگاه
+                data['device_count'],      # C: تعداد Device
+                data['component_count'],   # D: تعداد کل قطعات ✅ جدید
+                data['di'],                # E: DI
+                data['do'],                # F: DO
+                data['ai'],                # G: AI
+                data['ao'],                # H: AO
+                group_io,                  # I: Total I/O
+                f"{percentage:.1f}%"       # J: Percentage
             ]
 
             for col, value in enumerate(values, 1):
@@ -551,13 +568,13 @@ class ExcelExporter:
     # ================================================================
 
     def _create_lom_all(self, devices: List[Motor]):
-        """ایجاد لیست مواد - کلی با ستون Order Number در انتها"""
+        """ایجاد لیست مواد - کلی با ستون Model-Order Number"""
         ws = self.wb.create_sheet("LOM All Sections")
         self._set_page_setup(ws)
 
         # ============================================================
         # ✅ تنظیم عرض ستون‌ها
-        # A=Component, B=Qty, C=DI, D=DO, E=AI, F=AO, G=Order Number
+        # A=Component, B=Qty, C=DI, D=DO, E=AI, F=AO, G=Model-Order
         # ============================================================
         ws.column_dimensions['A'].width = 30   # Component
         ws.column_dimensions['B'].width = 10   # Qty
@@ -565,43 +582,54 @@ class ExcelExporter:
         ws.column_dimensions['D'].width = 5    # DO
         ws.column_dimensions['E'].width = 5    # AI
         ws.column_dimensions['F'].width = 5    # AO
-        ws.column_dimensions['G'].width = 20   # Order Number  ← جدید
+        ws.column_dimensions['G'].width = 20   # Model-Order Number
 
         # ===== عنوان =====
-        ws.merge_cells('A1:G1')   # ← از A تا G
+        ws.merge_cells('A1:G1')
         ws['A1'].value = "4.1. LOM For All Sections (Summary)"
         ws['A1'].font = self.section_font
         ws['A1'].fill = self.section_fill
         ws['A1'].alignment = self.center_alignment
         ws.row_dimensions[1].height = 30
 
-        # ===== جمع‌آوری کامپوننت‌ها =====
-        usage = {}
+        # ============================================================
+        # ✅ جدید: جمع‌آوری با گروه‌بندی (field, model_order)
+        # ============================================================
+        grouped_usage = {}   # {(field, model_order): {'qty': ..., 'di': ..., ...}}
+
         for device in devices:
             for field in COMPONENT_KEYS:
                 if field in EXCLUDED_FROM_COMPONENTS:
                     continue
                 qty = self._safe_int(getattr(device, field, 0))
                 if qty > 0:
-                    if field not in usage:
-                        usage[field] = {"qty": 0, "di": 0, "do": 0, "ai": 0, "ao": 0}
-                    usage[field]["qty"] += qty
+                    # ✅ Model-Order این کامپوننت در این دستگاه
+                    model_order = device.get_model_order(field)
+
+                    # ✅ کلید گروه
+                    key = (field, model_order)
+                    if key not in grouped_usage:
+                        grouped_usage[key] = {"qty": 0, "di": 0, "do": 0, "ai": 0, "ao": 0}
+
+                    grouped_usage[key]["qty"] += qty
 
                     if field in IO_CALCULATION:
                         io = IO_CALCULATION[field]
-                        usage[field]["di"] += qty * io.get("DI", 0)
-                        usage[field]["do"] += qty * io.get("DO", 0)
-                        usage[field]["ai"] += qty * io.get("AI", 0)
-                        usage[field]["ao"] += qty * io.get("AO", 0)
-
-        # ===== تعیین ستون‌های Active =====
-        active_keys = sorted(usage.keys())
+                        grouped_usage[key]["di"] += qty * io.get("DI", 0)
+                        grouped_usage[key]["do"] += qty * io.get("DO", 0)
+                        grouped_usage[key]["ai"] += qty * io.get("AI", 0)
+                        grouped_usage[key]["ao"] += qty * io.get("AO", 0)
 
         # ============================================================
-        # ✅ ساخت هدر جدول (Order Number در انتها)
+        # ✅ ستون‌های Active از component های یکتا
         # ============================================================
-        headers = ["Component", "Qty", "DI", "DO", "AI", "AO", "Model-Order Number"]   # ← جدید
-        
+        active_keys = sorted(set(field for field, _ in grouped_usage.keys()))
+
+        # ============================================================
+        # ✅ ساخت هدر جدول (Model-Order در ستون G)
+        # ============================================================
+        headers = ["Component", "Qty", "DI", "DO", "AI", "AO", "Model-Order Number"]
+
         for key in active_keys:
             headers.append(key)
 
@@ -609,10 +637,10 @@ class ExcelExporter:
 
         # ============================================================
         # ✅ تنظیم عرض ستون‌های Active (از ستون H شروع می‌شود)
-        # A=1, B=2, C=3, D=4, E=5, F=6, G=7 (Order Number), H=8 (Active)
+        # A=1, B=2, C=3, D=4, E=5, F=6, G=7 (Model-Order), H=8 (Active)
         # ============================================================
         for i, key in enumerate(active_keys):
-            col_letter = get_column_letter(8 + i)   # ← از H شروع
+            col_letter = get_column_letter(8 + i)
             ws.column_dimensions[col_letter].width = 8
 
         # ============================================================
@@ -628,65 +656,82 @@ class ExcelExporter:
         ws.row_dimensions[row].height = 25
 
         # ============================================================
-        # ✅ نوشتن داده‌ها
+        # ✅ نوشتن داده‌ها (گروه‌بندی بر اساس component + model_order)
         # ============================================================
-        if usage:
-            sorted_usage = sorted(usage.items(), key=lambda x: x[1]["qty"], reverse=True)
+        if grouped_usage:
+            # ============================================================
+            # ✅ مرتب‌سازی: component (الفبا)، سپس model_order (خالی آخر)
+            # ============================================================
+            sorted_usage = sorted(
+                grouped_usage.items(),
+                key=lambda x: (
+                    x[0][0],                       # component name
+                    x[0][1] == '',                 # خالی آخر
+                    x[0][1] if x[0][1] else '',    # model_order
+                )
+            )
+
             row += 1
-            for i, (field, data) in enumerate(sorted_usage):
+            for i, ((field, model_order), data) in enumerate(sorted_usage):
                 name = self._get_component_name(field)
-                
-                # ===== مقادیر پایه (Order Number خالی در انتها) =====
+
+                # ===== مقادیر پایه (با Model-Order) =====
                 values = [
-                    name,           # A: Component
-                    data["qty"],    # B: Qty
-                    data["di"],     # C: DI
-                    data["do"],     # D: DO
-                    data["ai"],     # E: AI
-                    data["ao"],     # F: AO
-                    "",             # G: Order Number (خالی)  ← جدید
+                    name,               # A: Component
+                    data["qty"],        # B: Qty
+                    data["di"],         # C: DI
+                    data["do"],         # D: DO
+                    data["ai"],         # E: AI
+                    data["ao"],         # F: AO
+                    model_order or '',  # G: Model-Order (خالی اگر نبود)
                 ]
-                
+
                 # ===== مقادیر Active =====
                 for key in active_keys:
                     if key == field:
                         values.append(data["qty"])
                     else:
                         values.append(0)
-                
+
                 # ===== ستون‌های پایه =====
-                for col in range(1, 8):   # 7 ستون پایه
+                for col in range(1, 8):
                     cell = ws.cell(row=row, column=col, value=values[col - 1])
                     self.styles.apply_style(cell, 'TableBodyAlt' if i % 2 == 1 else 'TableBody')
                     if col == 1:   # Component چپ‌چین
                         cell.alignment = self.styles.left_alignment
-                
+
                 # ===== ستون‌های Active Components =====
                 for j, key in enumerate(active_keys):
-                    col = 8 + j   # ← از H شروع
+                    col = 8 + j
                     value = values[7 + j]
                     cell = ws.cell(row=row, column=col, value=value)
                     if value > 0:
                         self.styles.apply_style(cell, 'ActivePositive')
                     else:
                         self.styles.apply_style(cell, 'ActiveZero')
-                
+
                 ws.row_dimensions[row].height = 22
                 row += 1
 
             # ============================================================
             # ✅ سطر TOTAL
             # ============================================================
-            total_di = sum(data["di"] for data in usage.values())
-            total_do = sum(data["do"] for data in usage.values())
-            total_ai = sum(data["ai"] for data in usage.values())
-            total_ao = sum(data["ao"] for data in usage.values())
-            total_qty = sum(data["qty"] for data in usage.values())
+            total_di = sum(data["di"] for data in grouped_usage.values())
+            total_do = sum(data["do"] for data in grouped_usage.values())
+            total_ai = sum(data["ai"] for data in grouped_usage.values())
+            total_ao = sum(data["ao"] for data in grouped_usage.values())
+            total_qty = sum(data["qty"] for data in grouped_usage.values())
 
-            total_values = ["TOTAL", total_qty, total_di, total_do, total_ai, total_ao, ""]   # ← Order Number خالی
-            
+            total_values = ["TOTAL", total_qty, total_di, total_do, total_ai, total_ao, ""]
+
+            # ستون‌های Active: مجموع per-component (نه per-group)
             for key in active_keys:
-                total_values.append(usage.get(key, {}).get("qty", 0))
+                col_qty = sum(
+                    d["qty"]
+                    for (f, _), d in grouped_usage.items()
+                    if f == key
+                )
+                total_values.append(col_qty)
 
             # ===== سطر TOTAL - ستون‌های پایه =====
             for col in range(1, 8):

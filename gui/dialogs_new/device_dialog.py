@@ -137,6 +137,7 @@ class DeviceDialog(BaseDialog):
         self.is_new = is_new
         
         self.component_entries = {}
+        self.model_order_entries = {}
         self._suggested_components = set()
         
         # ============================================================
@@ -973,12 +974,13 @@ class DeviceDialog(BaseDialog):
         
         # ✅ عرض ستون‌ها (ثابت — باید با rows یکسان باشد)
         columns = [
-            ("Component", 41, 'w'),
+            ("Component", 45, 'center'),
             ("Qty", 6, 'center'),
             ("DI", 6, 'center'),
             ("DO", 6, 'center'),
             ("AI", 6, 'center'),
             ("AO", 6, 'center'),
+            ("Model-Order", 25, 'center'),   # ✅ جدید
         ]
         
         for text, width, align in columns:
@@ -1074,7 +1076,7 @@ class DeviceDialog(BaseDialog):
         # ============================================================
         # ✅ عرض‌های ثابت (باید با هدر یکسان باشد)
         # ============================================================
-        NAME_WIDTH = 41
+        NAME_WIDTH = 45
         QTY_WIDTH = 6
         IO_WIDTH = 6
         
@@ -1126,6 +1128,30 @@ class DeviceDialog(BaseDialog):
             io_vars[io_type] = io_var
         
         # ذخیره
+        # ============================================================
+        # ✅ جدید: ستون Model-Order
+        # ============================================================
+        MODEL_ORDER_WIDTH = 25
+        
+        current_model_order = self.motor.get_model_order(field)
+        model_order_var = tk.StringVar(value=current_model_order)
+        
+        model_order_entry = tk.Entry(
+            row,
+            textvariable=model_order_var,
+            font=font('small'),
+            bg=get_color('input_bg'),
+            fg=get_color('input_text'),
+            insertbackground=get_color('input_text'),
+            relief='flat',
+            width=MODEL_ORDER_WIDTH,
+        )
+        model_order_entry.pack(side=tk.LEFT, padx=sp('xs'), pady=sp('xs'))
+        
+        # ذخیره
+        self.model_order_entries[field] = model_order_var
+        
+        # ذخیره در component_entries هم
         self.component_entries[field] = {
             'qty': qty_var,
             'io': io_vars,
@@ -1133,6 +1159,8 @@ class DeviceDialog(BaseDialog):
             'row': row,
             'name_label': name_label,
             'qty_entry': qty_entry,
+            'model_order_var': model_order_var,   # ✅ جدید
+            'model_order_entry': model_order_entry,
         }
         
         # رویداد
@@ -1470,6 +1498,14 @@ class DeviceDialog(BaseDialog):
                         total_do += qty * config.get('DO', 0)
                         total_ai += qty * config.get('AI', 0)
                         total_ao += qty * config.get('AO', 0)
+                    
+                    # ============================================================
+                    # ✅ جدید: ذخیره Model-Order
+                    # ============================================================
+                    if 'model_order_var' in data:
+                        model_order_value = data['model_order_var'].get().strip()
+                        self.motor.set_model_order(field, model_order_value)
+                    
                 except ValueError:
                     setattr(self.motor, field, 0)
             

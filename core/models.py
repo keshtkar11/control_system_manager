@@ -47,6 +47,8 @@ class Motor:
         for field in self.NUMERIC_FIELDS:
             value = kwargs.get(field, 0)
             setattr(self, field, self._validate_int(value, field))
+
+        self.ModelOrders: Dict[str, str] = kwargs.get('ModelOrders', {}) or {}
         
         # تاریخ ایجاد
         self.created_at = datetime.now()
@@ -92,14 +94,66 @@ class Motor:
             result[field] = getattr(self, field, 0)
 
         result['UseIndexNaming'] = getattr(self, 'UseIndexNaming', True)
+        
+        # ✅ جدید (v2.1): ModelOrders
+        result['ModelOrders'] = getattr(self, 'ModelOrders', {}) or {}
+        
         return result
+        
     
     def from_dict(self, data: Dict[str, Any]) -> 'Motor':
         """بارگذاری از دیکشنری"""
         for key, value in data.items():
             if hasattr(self, key):
                 setattr(self, key, value)
+        
+        # ✅ جدید (v2.1): اطمینان از وجود ModelOrders
+        if not hasattr(self, 'ModelOrders') or not isinstance(self.ModelOrders, dict):
+            self.ModelOrders = {}
+        
         return self
+
+    # ============================================================
+    # ✅ جدید (v2.1): متدهای Model-Order
+    # ============================================================
+    
+    def set_model_order(self, component_key: str, model_order: str) -> None:
+        """
+        ذخیره Model-Order برای یک کامپوننت
+        
+        Args:
+            component_key: کلید کامپوننت (مثلاً 'DTS')
+            model_order: کد Model-Order (مثلاً 'DTS-01')
+        """
+        if not hasattr(self, 'ModelOrders') or not isinstance(self.ModelOrders, dict):
+            self.ModelOrders = {}
+        
+        model_order = (model_order or '').strip()
+        
+        if model_order:
+            self.ModelOrders[component_key] = model_order
+        elif component_key in self.ModelOrders:
+            del self.ModelOrders[component_key]
+    
+    def get_model_order(self, component_key: str) -> str:
+        """
+        دریافت Model-Order یک کامپوننت
+        
+        Args:
+            component_key: کلید کامپوننت (مثلاً 'DTS')
+        
+        Returns:
+            کد Model-Order یا '' اگر تنظیم نشده
+        """
+        if not hasattr(self, 'ModelOrders') or not isinstance(self.ModelOrders, dict):
+            return ''
+        return self.ModelOrders.get(component_key, '')
+    
+    def get_all_model_orders(self) -> Dict[str, str]:
+        """دریافت همه Model-Order ها (فقط غیرخالی)"""
+        if not hasattr(self, 'ModelOrders') or not isinstance(self.ModelOrders, dict):
+            return {}
+        return {k: v for k, v in self.ModelOrders.items() if v}
     
     def get_total_io(self) -> int:
         """محاسبه مجموع I/O"""
@@ -401,6 +455,7 @@ class Revision:
         self.project_name = project_name
         self.sections: List[ProjectSection] = []
         self.description = ""
+        
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
     
