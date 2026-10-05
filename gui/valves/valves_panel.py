@@ -43,12 +43,396 @@ class ValvesPanel(tk.Frame):
         
         self.app = app
         
+        # ===== ✅ جدید: Toolbar Import/Export =====
+        self._build_io_toolbar()
+        
         # ===== ساخت جدول =====
         self.table = ValveTable(self, app=app)
         self.table.pack(fill=tk.BOTH, expand=True)
         
         # ===== وضعیت اولیه =====
         self._current_section_name = None
+
+    # ================================================================
+    # ✅ NEW: IO TOOLBAR (Import/Export/Template)
+    # ================================================================
+    
+    def _build_io_toolbar(self):
+        """ساخت Toolbar برای Import/Export/Template"""
+        from gui.components import SecondaryButton, PrimaryButton
+        
+        toolbar = tk.Frame(
+            self,
+            bg=get_color('bg_surface'),
+            height=45,
+        )
+        toolbar.pack(fill=tk.X, padx=sp('md'), pady=(sp('sm'), 0))
+        toolbar.pack_propagate(False)
+        
+        # ===== Title =====
+        tk.Label(
+            toolbar,
+            text="📊  Valves Import / Export",
+            font=font('body_bold'),
+            bg=get_color('bg_surface'),
+            fg=get_color('text_primary'),
+            anchor='w',
+        ).pack(side=tk.LEFT, padx=sp('sm'))
+        
+        # ===== Separator =====
+        tk.Frame(
+            toolbar,
+            bg=get_color('border_default'),
+            width=1,
+        ).pack(side=tk.LEFT, fill=tk.Y, padx=sp('sm'), pady=sp('xs'))
+        
+        # ===== 📄 Template Button =====
+        self.template_btn = SecondaryButton(
+            toolbar,
+            text="📄  Template",
+            command=self._on_download_template,
+            tooltip="Download Excel template for bulk import",
+        )
+        self.template_btn.pack(side=tk.LEFT, padx=sp('xxs'))
+        
+        # ===== 📤 Export Button =====
+        self.export_btn = SecondaryButton(
+            toolbar,
+            text="📤  Export",
+            command=self._on_export_simple,
+            tooltip="Export valves to Excel (with calculations)",
+        )
+        self.export_btn.pack(side=tk.LEFT, padx=sp('xxs'))
+        
+        # ===== 📥 Import Button =====
+        self.import_btn = PrimaryButton(
+            toolbar,
+            text="📥  Import",
+            command=self._on_import_simple,
+            tooltip="Import valves from Excel (auto-calculate)",
+        )
+        self.import_btn.pack(side=tk.LEFT, padx=sp('xxs'))
+        
+        # ===== Separator =====
+        tk.Frame(
+            toolbar,
+            bg=get_color('border_default'),
+            width=1,
+        ).pack(side=tk.LEFT, fill=tk.Y, padx=sp('sm'), pady=sp('xs'))
+        
+        # ===== Hint =====
+        tk.Label(
+            toolbar,
+            text="💡 Import: فقط ۸ فیلد ورودی را پر کنید، محاسبات خودکار انجام می‌شود",
+            font=font('caption'),
+            bg=get_color('bg_surface'),
+            fg=get_color('text_muted'),
+            anchor='w',
+        ).pack(side=tk.LEFT, padx=sp('sm'))
+    
+    # ================================================================
+    # ✅ NEW: TEMPLATE / EXPORT / IMPORT HANDLERS
+    # ================================================================
+    
+    def _on_download_template(self):
+        """دانلود فایل Template در مسیر پروژه"""
+        from tkinter import messagebox
+        from datetime import datetime
+        
+        try:
+            from export.valves_excel_importer import ValvesExcelImporter
+            
+            # ===== بررسی پروژه =====
+            project = self.app.get_current_project()
+            if not project:
+                ToastManager.warning("No project selected!")
+                return
+            
+            # ===== مسیر پیش‌فرض: پوشه پروژه =====
+            try:
+                project_dir = self.app.attachment_manager.ensure_project_dir(project.name)
+                reports_dir = os.path.join(project_dir, "Reports")
+                os.makedirs(reports_dir, exist_ok=True)
+                default_dir = reports_dir
+            except Exception as e:
+                default_dir = os.path.expanduser("~")
+                print(f"⚠️ Could not get project folder: {e}")
+            
+            # ===== نام فایل =====
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            default_name = f"Valves_Template_{timestamp}.xlsx"
+            
+            # ===== دیالوگ (مسیر پیش‌فرض پر است) =====
+            from tkinter import filedialog
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx")],
+                title="Save Valves Template",
+                initialdir=default_dir,
+                initialfile=default_name,
+            )
+            
+            if not file_path:
+                return
+            
+            # ===== ساخت =====
+            importer = ValvesExcelImporter(self.app)
+            success = importer.create_template(file_path)
+            
+            if success:
+                if os.name == 'nt':
+                    try:
+                        os.startfile(file_path)
+                    except:
+                        pass
+                
+                messagebox.showinfo(
+                    "Template Saved",
+                    f"Template saved to:\n{file_path}\n\n"
+                    f"📁 Project: {project.name}\n\n"
+                    f"فرمت فایل:\n"
+                    f"  • Equipment: نام شیر\n"
+                    f"  • ValveType: PICV / 3 Way / Steam / PICV+3Way\n"
+                    f"  • Flow: عدد\n"
+                    f"  • Unit: L/HR, L/min, m³/h, GPM, Kg/h, lb/h, ton/h\n"
+                    f"  • PressureDrop: عدد (psi)\n"
+                    f"  • SteamPressure: عدد (bar) — فقط برای Steam\n"
+                    f"  • Circuit: نام مدار\n"
+                    f"  • Quantity: عدد\n\n"
+                    f"💡 ردیف‌های نمونه (Sample) در Import نادیده گرفته می‌شوند."
+                )
+                
+                ToastManager.success("Template saved!")
+            else:
+                ToastManager.error("Failed to create template!")
+        
+        except ImportError:
+            ToastManager.error(
+                "ValvesExcelImporter not available!\n"
+                "Please ensure 'export/valves_excel_importer.py' exists."
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            ToastManager.error(f"Failed: {str(e)}")
+    
+    def _on_export_simple(self):
+        """Export ساده — فقط Section فعلی"""
+        from tkinter import filedialog
+        
+        section = self.get_current_section()
+        if not section:
+            ToastManager.warning("لطفاً ابتدا یک Section را انتخاب کنید!")
+            return
+        
+        valves = getattr(section, 'valves', [])
+        if not valves:
+            ToastManager.warning("هیچ شیری در این Section وجود ندارد!")
+            return
+        
+        try:
+            from export.valves_excel_importer import ValvesExcelImporter
+            from datetime import datetime
+            
+            # نام فایل
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            safe_section = "".join(
+                c if c.isalnum() or c in " _-" else "_"
+                for c in section.name
+            ).strip() or "Section"
+            
+            # پوشه پیش‌فرض
+            try:
+                project = self.app.get_current_project()
+                project_dir = self.app.attachment_manager.ensure_project_dir(project.name)
+                reports_dir = os.path.join(project_dir, "Reports")
+                os.makedirs(reports_dir, exist_ok=True)
+                default_dir = reports_dir
+            except Exception:
+                default_dir = os.path.expanduser("~")
+            
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx")],
+                title="Save Valves Export",
+                initialdir=default_dir,
+                initialfile=f"Valves_{safe_section}_{timestamp}.xlsx",
+            )
+            
+            if not file_path:
+                return
+            
+            try:
+                importer = ValvesExcelImporter(self.app)
+                success = importer.export_valves(valves, section.name, file_path)
+                
+                if success:
+                    if os.name == 'nt':
+                        try:
+                            os.startfile(file_path)
+                        except:
+                            pass
+                    
+                    ToastManager.success(
+                        f"{len(valves)} valves exported!"
+                    )
+                else:
+                    ToastManager.error("Export failed!")
+            except PermissionError:
+                from tkinter import messagebox
+                messagebox.showerror(
+                    "❌ فایل باز است",
+                    f"فایل زیر باز است و قابل ذخیره نیست:\n\n"
+                    f"📄 {os.path.basename(file_path)}\n\n"
+                    f"لطفاً آن را در Excel ببندید و دوباره تلاش کنید."
+                )
+            else:
+                ToastManager.error("Export failed!")
+        
+        except ImportError:
+            ToastManager.error(
+                "ValvesExcelImporter not available!\n"
+                "Please ensure 'export/valves_excel_importer.py' exists."
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            ToastManager.error(f"Export failed: {str(e)}")
+    
+    def _on_import_simple(self):
+        """Import شیرها از فایل Excel"""
+        import traceback
+        from tkinter import filedialog
+        
+        print("=" * 70)
+        print("🔵 _on_import_simple START")
+        print("=" * 70)
+        
+        section = self.get_current_section()
+        print(f"📍 section: {section}")
+        if section:
+            print(f"   name: {section.name!r}")
+            print(f"   valves BEFORE: {len(section.valves)}")
+        
+        if not section:
+            ToastManager.warning(
+                "لطفاً ابتدا یک Section را انتخاب کنید!\n"
+                "(شیرها به Section فعلی اضافه می‌شوند)"
+            )
+            return
+        
+        # ===== انتخاب فایل =====
+        file_path = filedialog.askopenfilename(
+            filetypes=[("Excel files", "*.xlsx")],
+            title="Select Valves Excel File",
+        )
+        print(f"📂 Selected: {file_path!r}")
+        
+        if not file_path:
+            print("❌ No file selected — abort")
+            return
+        
+        try:
+            print("📦 Importing ValvesExcelImporter...")
+            from export.valves_excel_importer import ValvesExcelImporter
+            
+            importer = ValvesExcelImporter(self.app)
+            print(f"✅ importer created")
+            
+            # ===== مرحله ۱: خواندن =====
+            print("📖 Calling read_and_validate...")
+            result = importer.read_and_validate(file_path)
+            print(f"   success: {result['success']}")
+            print(f"   valves: {len(result['valves'])}")
+            print(f"   warnings: {len(result['warnings'])}")
+            
+            if not result['success']:
+                print(f"❌ read failed: {result['error']}")
+                ToastManager.error(result['error'])
+                return
+            
+            # ===== مرحله ۲: Preview =====
+            print("🎨 Creating preview dialog...")
+            from gui.valves.import_preview_dialog import ImportPreviewDialog
+            
+            preview_dialog = ImportPreviewDialog(
+                parent=self.app.root,
+                app=self.app,
+                import_result=result,
+                section=section,
+            )
+            preview_dialog.show()
+            print(f"   show() returned, result = {preview_dialog.result}")
+            
+            # ===== مرحله ۳: اعمال =====
+            if preview_dialog.result:
+                print("✅ User confirmed — applying import...")
+                print(f"   Section BEFORE: {len(section.valves)}")
+                
+                # ===== اعمال =====
+                added_count = importer.apply_import(
+                    result['valves'],
+                    section,
+                )
+                print(f"   apply_import returned: {added_count}")
+                print(f"   Section AFTER: {len(section.valves)}")
+                
+                # ===== ذخیره =====
+                self.app._save_project()
+                print(f"✅ Project saved")
+                
+                # ===== چک دیتابیس =====
+                try:
+                    fresh_projects = self.app.db.load_all_projects()
+                    current_name = self.app.current_project_name
+                    print(f"   current project name: {current_name!r}")
+                    
+                    if current_name in fresh_projects:
+                        fresh_project = fresh_projects[current_name]
+                        fresh_rev = fresh_project.get_current_revision()
+                        
+                        if fresh_rev:
+                            print(f"   current revision: {fresh_rev.name!r}")
+                            for sec in fresh_rev.sections:
+                                marker = "🟢" if len(sec.valves) > 0 else "  "
+                                print(f"   {marker} DB Section: {sec.name!r} → {len(sec.valves)} valves")
+                except Exception as e:
+                    print(f"⚠️ DB check failed: {e}")
+                    traceback.print_exc()
+                
+                # ===== به‌روزرسانی UI =====
+                try:
+                    self.table.load_data(section.valves)
+                    print(f"✅ Table reloaded: {len(section.valves)} valves")
+                except Exception as e:
+                    print(f"⚠️ Table reload failed: {e}")
+                
+                try:
+                    self.app.sidebar.refresh_tree(
+                        self.app.projects,
+                        preserve_state=True,
+                    )
+                    print(f"✅ Sidebar refreshed")
+                except Exception as e:
+                    print(f"⚠️ Sidebar refresh failed: {e}")
+                
+                self.app._update_statusbar()
+                self.app._update_stats()
+                
+                ToastManager.success(
+                    f"✅ {added_count} valve(s) imported successfully!"
+                )
+            else:
+                print("❌ User cancelled")
+        
+        except Exception as e:
+            print(f"❌❌❌ EXCEPTION: {e}")
+            traceback.print_exc()
+            ToastManager.error(f"Import failed: {str(e)}")
+        
+        print("=" * 70)
+        print("🔵 _on_import_simple END")
+        print("=" * 70)
     
     # ================================================================
     # SECTION MANAGEMENT

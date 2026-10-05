@@ -13,6 +13,7 @@
 """
 
 import os
+import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from collections import defaultdict
@@ -30,7 +31,7 @@ from core.constants import (
     gregorian_to_jalali,
 )
 
-
+logger = logging.getLogger(__name__)
 # ================================================================
 # VALVES EXCEL EXPORTER
 # ================================================================
@@ -1790,10 +1791,29 @@ class ValvesExcelExporter:
             self._create_cover_sheet(project, revision_name)
             
             # ۲. یک Sheet به ازای هر سکشن
-            for sec_name, sec_valves in by_section.items():
-                self._create_section_sheet(sec_name, sec_valves)
+            # ============================================================
+            # ✅ منطق جدید: اگر تعداد سکشن > 1 → Sheet برای هر سکشن
+            # اگر 1 سکشن → Sheet سکشن ساخته نشود (چون Valves — All خودش همان است)
+            # ============================================================
+            section_count = len(by_section)
+            create_section_sheets = section_count > 1
             
+            if create_section_sheets:
+                logger.info(
+                    f"📊 {section_count} sections detected → "
+                    f"creating per-section sheets"
+                )
+                for sec_name, sec_valves in by_section.items():
+                    self._create_section_sheet(sec_name, sec_valves)
+            else:
+                logger.info(
+                    f"📊 Only {section_count} section detected → "
+                    f"skipping per-section sheets (using Valves — All)"
+                )
+            
+            # ============================================================
             # ۳. Sheet های تفکیک بر اساس نوع (کل پروژه)
+            # ============================================================
             picv_valves = [v for v in all_valves if v.ValveType == 'PICV']
             three_way_valves = [v for v in all_valves if v.ValveType == '3 Way']
             steam_valves = [v for v in all_valves if v.ValveType == 'Steam']
@@ -1813,7 +1833,9 @@ class ValvesExcelExporter:
                 self.accent_color
             )
             
-            # ۴. Sheet جامع
+            # ============================================================
+            # ۴. Sheet جامع (همیشه)
+            # ============================================================
             self._create_all_sheet(all_valves)
             
             # ۵. LOM TOTAL (جمع کل پروژه + خلاصه سکشن‌ها)
@@ -1825,10 +1847,37 @@ class ValvesExcelExporter:
             # ============================================================
             # ذخیره
             # ============================================================
-            self.wb.save(file_path)
+            # ============================================================
+            # ذخیره — با مدیریت خطای Permission
+            # ============================================================
+            try:
+                self.wb.save(file_path)
+            except PermissionError:
+                from tkinter import messagebox
+                messagebox.showerror(
+                    "❌ خطای دسترسی",
+                    f"فایل زیر باز است و قابل ذخیره نیست:\n\n"
+                    f"📄 {os.path.basename(file_path)}\n\n"
+                    f"🔧 راه‌حل:\n"
+                    f"  1. فایل را در Excel ببندید (Save نکنید)\n"
+                    f"  2. یا فایل را با نام دیگری ذخیره کنید\n\n"
+                    f"📂 مسیر کامل:\n{file_path}"
+                )
+                return None
+            except Exception as e:
+                from tkinter import messagebox
+                messagebox.showerror(
+                    "❌ خطا در ذخیره",
+                    f"خطا در ذخیره فایل:\n{str(e)}"
+                )
+                return None
             
+            # باز کردن فایل
             if os.name == 'nt':
-                os.startfile(file_path)
+                try:
+                    os.startfile(file_path)
+                except Exception as e:
+                    print(f"⚠️ Could not open file: {e}")
             
             from tkinter import messagebox
             messagebox.showinfo(

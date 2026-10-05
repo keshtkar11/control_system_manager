@@ -664,7 +664,6 @@ def _enrich_picv(valve) -> None:
     if picv_result.get('warning'):
         valve.WarningGeneral = picv_result['warning']
 
-
 def _enrich_3way(valve) -> None:
     """پر کردن فیلدهای 3Way"""
     if valve.MaxFlowLPH <= 0:
@@ -696,6 +695,16 @@ def _enrich_3way(valve) -> None:
         valve.__dict__['3WayModel'] = ''
     
     valve.__dict__['3WayActuator'] = vrg3_result['actuator'] or ''
+    
+    # ============================================================
+    # ✅ جدید: پر کردن 3WaySignal
+    # ============================================================
+    # اگر کاربر قبلاً Signal داده، حفظ کن
+    user_signal = (valve.__dict__.get('3WaySignal', '') or '').strip()
+    
+    if not user_signal:
+        # Signal پیش‌فرض برای 3Way (Modulating , 24Vac , 0-10V)
+        valve.__dict__['3WaySignal'] = "Modulating , 24Vac , 0-10V"
     
     if vrg3_result.get('warning'):
         valve.Warning3Way = vrg3_result['warning']
@@ -780,6 +789,16 @@ def _enrich_steam(valve) -> None:
     valve.SteamDN = vfs2_result['dn'] or 0
     valve.SteamModel = vfs2_result['model'] or ''
     valve.SteamActuator = vfs2_result['actuator'] or ''
+    
+    # ============================================================
+    # ✅ جدید: پر کردن SteamSignal
+    # ============================================================
+    # اگر کاربر قبلاً Signal داده، حفظ کن
+    user_signal = (getattr(valve, 'SteamSignal', '') or '').strip()
+    
+    if not user_signal:
+        # Signal پیش‌فرض برای Steam (Modulating , 24Vac , 0-10V)
+        valve.SteamSignal = "Modulating , 24Vac , 0-10V"
 
     # ============================================================
     # ✅ جدید: اطلاعات VFS 2 (از کاتالوگ Danfoss)

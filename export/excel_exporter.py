@@ -3,6 +3,7 @@
 """خروجی‌های Excel با گزارش‌های حرفه‌ای - سایز A3 Landscape"""
 
 import os
+import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 import math
@@ -26,6 +27,7 @@ from core import Motor, Project, COMPONENT_LABELS, COMPONENT_KEYS
 from core.constants import IO_CALCULATION, CABLE_SIZE, EXCLUDED_FROM_COMPONENTS, COLORS
 from core.constants import gregorian_to_jalali
 
+logger = logging.getLogger(__name__)
 
 class ExcelExporter:
     """صادرکننده گزارش Excel حرفه‌ای - سایز A3 Landscape"""
@@ -447,10 +449,10 @@ class ExcelExporter:
         self._set_page_setup(ws)
 
         # تنظیم عرض ستون‌ها
-        ws.column_dimensions['A'].width = 25   # Section Name
-        ws.column_dimensions['B'].width = 40   # Device Description
+        ws.column_dimensions['A'].width = 35   # Section Name
+        ws.column_dimensions['B'].width = 35   # Device Description
         ws.column_dimensions['C'].width = 8    # Devices
-        ws.column_dimensions['D'].width = 10   # Components  ← جدید
+        ws.column_dimensions['D'].width = 15   # Components  ← جدید
         ws.column_dimensions['E'].width = 5    # DI
         ws.column_dimensions['F'].width = 5    # DO
         ws.column_dimensions['G'].width = 5    # AI
@@ -1982,13 +1984,29 @@ class ExcelExporter:
                 return None
 
         try:
+            # ===== شمارش سکشن‌ها =====
+            section_count = len(project.sections)
+            
             # ===== ایجاد شیت‌ها =====
             self._create_cover_sheet(project, revision_name)
             self._create_executive_summary(project, devices)
             self._create_io_summary(devices)
             self._create_sections(project)
             self._create_lom_all(devices)
-            self._create_lom_by_section(project)
+            
+            # ✅ منطق شرطی: اگر تعداد سکشن > 1 → LOM By Section
+            if section_count > 1:
+                logger.info(
+                    f"📊 {section_count} sections detected → "
+                    f"creating 'LOM By Section'"
+                )
+                self._create_lom_by_section(project)
+            else:
+                logger.info(
+                    f"📊 Only {section_count} section detected → "
+                    f"skipping 'LOM By Section' (using 'LOM All Sections')"
+                )
+            
             self._create_cable_list(project)
             self._create_controller_requirements(project)
             self._create_appendix(devices)
