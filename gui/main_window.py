@@ -1428,7 +1428,7 @@ class MotorApp:
             ToastManager.error(f"Target revision '{revision_name}' not found!")
             return
         
-        # بررسی نام تکراری
+        # ===== نام یکتا =====
         base_name = section.name
         new_name = base_name
         counter = 1
@@ -1436,17 +1436,23 @@ class MotorApp:
             new_name = f"{base_name}_Copy{counter}"
             counter += 1
         
-        # ذخیره Undo State
+        # ===== ذخیره Undo State =====
         self._save_state()
         
-        # کپی Section
+        # ===== کپی =====
         new_section = section.copy()
-        new_section.name = new_name
+        new_section.name = new_name   # ✅ این خط حتماً باید باشد!
         target_rev.sections.append(new_section)
         
-        # ذخیره
+        # ===== ذخیره =====
         self._save_project()
-        self._refresh_ui()
+        
+        # ===== ✅ رفتن به Section جدید =====
+        if project_name == self.current_project_name:
+            self.current_section_name = new_name
+            self._refresh_ui()
+        else:
+            self._refresh_ui()
         
         ToastManager.success(
             f"Section '{new_name}' pasted to '{revision_name}'!"

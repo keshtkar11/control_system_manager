@@ -263,7 +263,7 @@ class DeviceTable(tk.Frame):
             'do':          ('DO',          35,  'center'),
             'ai':          ('AI',          35,  'center'),
             'ao':          ('AO',          35,  'center'),
-            'total':       ('Total',       45,  'center'),
+            'total':       ('Total',       50,  'center'),
             'info':        ('Device',      250, 'center'),
         }
         
@@ -272,10 +272,10 @@ class DeviceTable(tk.Frame):
             
             # ✅ minwidth کوچک برای ستون‌های باریک
             if width < 50:
-                min_w = 20
+                min_w = 30
                 stretch = False    # ثابت
             else:
-                min_w = 60
+                min_w = 55
                 stretch = True     # کشیده
             
             self.tree.column(

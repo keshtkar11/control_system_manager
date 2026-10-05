@@ -234,6 +234,17 @@ class Sidebar(tk.Frame):
                 label=f"  {ico('add')}  New Section",
                 command=self._add_section_to_project,
             )
+            # ✅ Paste Section (به Revision فعلی این Project)
+            if hasattr(self, '_copied_section') and self._copied_section:
+                current_rev = project.current_revision_name if project else None
+                if current_rev:
+                    self.context_menu.add_command(
+                        label=f"  📌  Paste Section '{self._copied_section.name}' to '{current_rev}'",
+                        command=lambda p=proj_name, r=current_rev: 
+                            self._paste_section(p, r),
+                    )
+                    self.context_menu.add_separator()
+
             self.context_menu.add_separator()
             self.context_menu.add_command(
                 label=f"  {ico('backup')}  Backup Project",
@@ -329,6 +340,13 @@ class Sidebar(tk.Frame):
                 label="  📋  Copy This Revision → New",
                 command=lambda: self._copy_revision_dialog(proj_name, rev_name),
             )
+            # ✅ Paste Section (به این Revision)
+            if hasattr(self, '_copied_section') and self._copied_section:
+                self.context_menu.add_command(
+                    label=f"  📌  Paste Section '{self._copied_section.name}'",
+                    command=lambda p=proj_name, r=rev_name: 
+                        self._paste_section(p, r),
+                )
             
             # ===== Copy All Sections to Current =====
             if not is_current and section_count > 0:
@@ -423,18 +441,14 @@ class Sidebar(tk.Frame):
                 command=lambda: self._copy_section(proj_name, rev_name, sec_name),
             )
             
-            # ===== Paste Section =====
+            
+            # ===== Paste Section (به همان Revision) =====
             if hasattr(self, '_copied_section') and self._copied_section:
-                if self.app:
-                    current_project = self.app.get_current_project()
-                    if current_project:
-                        current_rev = current_project.current_revision_name
-                        if current_rev:
-                            self.context_menu.add_command(
-                                label=f"  📌  Paste Section to '{current_rev}'",
-                                command=lambda cp=current_project.name, cr=current_rev: 
-                                    self._paste_section(cp, cr),
-                            )
+                self.context_menu.add_command(
+                    label=f"  📌  Paste Section '{self._copied_section.name}'",
+                    command=lambda p=proj_name, r=rev_name: 
+                        self._paste_section(p, r),
+                )
             
             self.context_menu.add_separator()
             

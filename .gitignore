@@ -104,14 +104,14 @@ test_*.py
 check_*.py
 investigate_*.py
 analyze_*.py
-find_*.py                    # ✅ جدید
-re_enrich_*.py               # ✅ جدید
+find_*.py                    
+re_enrich_*.py               
 *_backup.py
 *.txt.bak
-sidebar_context_menu.txt     # ✅ جدید
-*_test.py                    # ✅ جدید
-debug_*.py                   # ✅ جدید
-temp_*.py                    # ✅ جدید
+sidebar_context_menu.txt     
+*_test.py                    
+debug_*.py                   
+temp_*.py                    
 
 # ============================================================
 # Output files
@@ -124,6 +124,6 @@ output/
 # ============================================================
 # Temporary / Scratch
 # ============================================================
-*.tmp.txt                    # ✅ جدید
+*.tmp.txt                    
 *.scratch
 *.bak.py
