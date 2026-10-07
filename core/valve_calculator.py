@@ -218,63 +218,71 @@ def calculate_kv(flow_lph: float, pressure_drop_psi: float,
 
 def select_vrg3(kv_calc: float) -> Dict[str, Any]:
     """
-    انتخاب VRG 3 بر اساس نزدیک‌ترین Kv
+    انتخاب Kvs شیر سه راهه بر اساس قاعده 30-70
+    
+    منطق:
+        1. جدول Kvs مرتب
+        2. پیدا کردن بازه [Kvs_low, Kvs_high] که Kv_calc در آن است
+        3. decision = Kvs_low + 0.30 × (Kvs_high - Kvs_low)
+        4. Kv_calc < decision → Kvs_low
+        5. Kv_calc >= decision → Kvs_high
     """
+    from core.valve_constants import ALL_3WAY_TABLE
+    
+    DECISION_PERCENT = 0.31
+    
     result = {
-        'dn': None,
-        'kv': None,
-        'actuator': None,
-        'diff': None,
-        'warning': None,
+        'dn': None, 'kv': None, 'series': None,
+        'model': None, 'actuator': None,
+        'diff': None, 'warning': None,
     }
     
-    try:
-        kv_calc = float(kv_calc)
-    except (ValueError, TypeError):
-        result['warning'] = "⚠️ Kv نامعتبر است"
-        return result
-    
     if kv_calc <= 0:
-        result['warning'] = "⚠️ Kv محاسبه‌شده نامعتبر است"
+        result['warning'] = "⚠️ Kv نامعتبر"
         return result
     
-    # ===== بررسی محدوده =====
-    if kv_calc > KV_MAX_3WAY:
-        result['warning'] = (
-            f"⚠️ Kv محاسبه‌شده ({kv_calc:.2f}) از بزرگ‌ترین Kv جدول "
-            f"VRG 3/VF 3 ({KV_MAX_3WAY}) بیشتر است."
-        )
-        kv_max, dn_max = VRG3_TABLE[-1]
-        result['dn'] = dn_max
-        result['kv'] = kv_max
-        result['actuator'] = get_3way_actuator(dn_max)
-        result['diff'] = round(abs(kv_max - kv_calc), 4)
+    # کوچک‌تر از کوچک‌ترین
+    if kv_calc <= ALL_3WAY_TABLE[0][0]:
+        kv, dn, series, actuator = ALL_3WAY_TABLE[0]
+        result.update({
+            'kv': kv, 'dn': dn, 'series': series,
+            'model': f"{series} DN{dn}",
+            'actuator': actuator,
+        })
         return result
     
-    # ===== پیدا کردن نزدیک‌ترین =====
-    best_match = None
-    min_diff = float('inf')
+    # بزرگ‌تر از بزرگ‌ترین
+    if kv_calc >= ALL_3WAY_TABLE[-1][0]:
+        kv, dn, series, actuator = ALL_3WAY_TABLE[-1]
+        result.update({
+            'kv': kv, 'dn': dn, 'series': series,
+            'model': f"{series} DN{dn}",
+            'actuator': actuator,
+        })
+        return result
     
-    for kv, dn in VRG3_TABLE:
-        diff = abs(kv - kv_calc)
+    # پیدا کردن بازه
+    for i in range(len(ALL_3WAY_TABLE) - 1):
+        kv_low, dn_low, series_low, act_low = ALL_3WAY_TABLE[i]
+        kv_high, dn_high, series_high, act_high = ALL_3WAY_TABLE[i + 1]
         
-        if diff < min_diff or (diff == min_diff and 
-                                best_match and kv > best_match[0]):
-            min_diff = diff
-            best_match = (kv, dn)
-    
-    if best_match:
-        kv_sel, dn_sel = best_match
-        result['dn'] = dn_sel
-        result['kv'] = kv_sel
-        result['actuator'] = get_3way_actuator(dn_sel) or "AME 435 QM"
-        result['diff'] = round(min_diff, 4)
-        
-        if kv_calc < KV_MIN_3WAY:
-            result['warning'] = (
-                f"⚠️ Kv محاسبه‌شده ({kv_calc:.2f}) کمتر از کوچک‌ترین Kv جدول "
-                f"VRG 3 ({KV_MIN_3WAY}) است. DN 15 انتخاب شد."
-            )
+        if kv_low <= kv_calc < kv_high:
+            # نقطه تصمیم
+            decision = kv_low + DECISION_PERCENT * (kv_high - kv_low)
+            
+            if kv_calc < decision:
+                chosen = (kv_low, dn_low, series_low, act_low)
+            else:
+                chosen = (kv_high, dn_high, series_high, act_high)
+            
+            kv, dn, series, actuator = chosen
+            result.update({
+                'kv': kv, 'dn': dn, 'series': series,
+                'model': f"{series} DN{dn}",
+                'actuator': actuator,
+                'diff': round(abs(kv - kv_calc), 4),
+            })
+            return result
     
     return result
 
@@ -688,22 +696,15 @@ def _enrich_3way(valve) -> None:
     dn = vrg3_result['dn'] or 0
     valve.__dict__['3WayDN'] = dn
     
-    if dn:
-        series = "VRG 3" if dn <= 50 else "VF 3"
-        valve.__dict__['3WayModel'] = f"{series} DN{dn}"
-    else:
-        valve.__dict__['3WayModel'] = ''
-    
+    # ✅ مدل از result (VZL 3 / VRG 3 / VF 3)
+    valve.__dict__['3WayModel'] = vrg3_result['model'] or ''
     valve.__dict__['3WayActuator'] = vrg3_result['actuator'] or ''
     
     # ============================================================
     # ✅ جدید: پر کردن 3WaySignal
     # ============================================================
-    # اگر کاربر قبلاً Signal داده، حفظ کن
     user_signal = (valve.__dict__.get('3WaySignal', '') or '').strip()
-    
     if not user_signal:
-        # Signal پیش‌فرض برای 3Way (Modulating , 24Vac , 0-10V)
         valve.__dict__['3WaySignal'] = "Modulating , 24Vac , 0-10V"
     
     if vrg3_result.get('warning'):

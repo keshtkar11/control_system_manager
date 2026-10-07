@@ -170,18 +170,22 @@ class ValvesExcelExporter:
             left=0.5, right=0.5, top=0.75, bottom=0.75
         )
         
-        # ===== Print Title Rows (برای همه صفحات) =====
+        # ============================================================
+        # ✅ جدید: Page Break Preview برای همه Sheets (از جمله Cover)
+        # ============================================================
+        ws.sheet_view.view = 'pageBreakPreview'
+        ws.sheet_view.zoomScale = 130
+        
+        # ===== Horizontal Centered (برای همه) =====
+        ws.print_options.horizontalCentered = True
+        
+        # ===== Print Title Rows (فقط برای غیر Cover) =====
         if not is_cover:
             ws.print_title_rows = '1:4'
-            
-            # ===== Horizontal Centered =====
-            ws.print_options.horizontalCentered = True
-            
-            # ===== Page Break Preview =====
-            ws.sheet_view.view = 'pageBreakPreview'
-            ws.sheet_view.zoomScale = 130
         
-        # ===== Header (برای همه) =====
+        # ============================================================
+        # ✅ Header (فقط برای غیر Cover)
+        # ============================================================
         if not is_cover:
             ws.oddHeader.left.text = f"{self.company_name}"
             ws.oddHeader.left.size = 9
@@ -191,12 +195,14 @@ class ValvesExcelExporter:
             ws.oddHeader.right.size = 9
             ws.oddHeader.right.color = self.primary_color
         
-        # ===== Footer (برای همه) =====
+        # ============================================================
+        # ✅ Footer (برای همه)
+        # ============================================================
         ws.oddFooter.left.text = "© Vahhaj Sanat Energy Co."
         ws.oddFooter.left.size = 8
         ws.oddFooter.left.color = self.primary_color
         
-        ws.oddFooter.right.text = "Page &P of &N"  # ← شماره صفحه
+        ws.oddFooter.right.text = "Page &P of &N"
         ws.oddFooter.right.size = 8
         ws.oddFooter.right.color = self.primary_color
     
