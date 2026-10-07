@@ -255,7 +255,7 @@ COMPONENT_LABELS: Dict[str, Dict[str, str]] = {
     'LUX': {"fa": "نور سنج", "en": "Lux Meter"},
     'VIB': {"fa": "لرزش سنج", "en": "Vibration Sensor"},
     'BUZ': {"fa": "زنگ خطر", "en": "Buzzer Alarm"},
-    'HMI': {"fa": "پنل اپراتور", "en": "HMI Panel"},
+    'HMI': {"fa": "پنل اپراتور", "en": "Human-Machine Interface"},
     'FCV': {"fa": "شیر کنترل فن‌کویل", "en": "Fancoil Control Valve"},
 }
 
@@ -626,7 +626,7 @@ IO_REFERENCE = {
         'ai': [], 'ao': []
     },
     'HMI': {
-        'label': 'HMI Panel',
+        'label': 'Human-Machine Interface',
         'di': [], 'do': [], 'ai': [], 'ao': []
     },
     'FCV': {
